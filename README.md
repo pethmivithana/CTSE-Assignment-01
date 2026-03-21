@@ -94,6 +94,8 @@ docker compose build && docker compose up -d
 - **Frontend:** http://localhost:3000  
 - **API Gateway:** http://localhost:3001  
 
+**Teammate / new PC (clone → run):** [`docs/SETUP_AFTER_CLONE.md`](docs/SETUP_AFTER_CLONE.md)  
+
 **Full guide (images, containers, GitHub, CI/CD, production):** [`docs/DEPLOYMENT_AND_DEVOPS.md`](docs/DEPLOYMENT_AND_DEVOPS.md)
 
 ### CI/CD summary
