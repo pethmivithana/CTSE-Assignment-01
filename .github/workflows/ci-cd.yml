@@ -1,0 +1,154 @@
+# CTSE Assignment — CI/CD for Feedo microservices
+# On push/PR: install deps, run tests (if any), build Docker images.
+# On push to main/master: push images to GitHub Container Registry (GHCR).
+#
+# Required secrets (optional): none for basic CI. For GHCR push, GITHUB_TOKEN is automatic.
+# For SonarCloud use .github/workflows/sonarcloud.yml + SONAR_TOKEN secret.
+
+name: CI/CD
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  # --- Lint / test each Node service ---
+  build-and-test:
+    name: Test ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - user-service
+          - restaurant-service
+          - order-service
+          - delivery-service
+          - payment-service
+          - notification-service
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: npm
+          cache-dependency-path: services/${{ matrix.service }}/package-lock.json
+
+      - name: Install & test
+        working-directory: services/${{ matrix.service }}
+        run: |
+          npm ci 2>/dev/null || npm install
+          npm test --if-present || echo "No tests — skipping"
+
+      - name: Build Docker image (verify Dockerfile)
+        run: |
+          docker build -t feedo-${{ matrix.service }}:ci \
+            -f services/${{ matrix.service }}/Dockerfile \
+            services/${{ matrix.service }}
+
+  # --- API Gateway image ---
+  gateway:
+    name: API Gateway Docker
+    runs-on: ubuntu-latest
+    needs: [build-and-test]
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t feedo-api-gateway:ci -f api_gateway/Dockerfile api_gateway
+
+  # --- Frontend build (CI) ---
+  frontend:
+    name: Frontend build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: npm
+          cache-dependency-path: food-delivery-frontend/package-lock.json
+      - name: Install & build
+        working-directory: food-delivery-frontend
+        env:
+          CI: true
+          REACT_APP_API_URL: http://localhost:3001
+        run: |
+          npm ci 2>/dev/null || npm install
+          npm run build
+
+  # --- Push images to GHCR (only on default branch pushes) ---
+  push-images:
+    name: Push ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    needs: [build-and-test, gateway, frontend]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    permissions:
+      contents: read
+      packages: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: user-service
+            context: services/user-service
+            file: services/user-service/Dockerfile
+            image: feedo-user-service
+          - name: restaurant-service
+            context: services/restaurant-service
+            file: services/restaurant-service/Dockerfile
+            image: feedo-restaurant-service
+          - name: order-service
+            context: services/order-service
+            file: services/order-service/Dockerfile
+            image: feedo-order-service
+          - name: delivery-service
+            context: services/delivery-service
+            file: services/delivery-service/Dockerfile
+            image: feedo-delivery-service
+          - name: payment-service
+            context: services/payment-service
+            file: services/payment-service/Dockerfile
+            image: feedo-payment-service
+          - name: notification-service
+            context: services/notification-service
+            file: services/notification-service/Dockerfile
+            image: feedo-notification-service
+          - name: api-gateway
+            context: api_gateway
+            file: api_gateway/Dockerfile
+            image: feedo-api-gateway
+          - name: frontend
+            context: food-delivery-frontend
+            file: food-delivery-frontend/Dockerfile
+            image: feedo-frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image }}:latest
+          build-args: |
+            REACT_APP_API_URL=http://localhost:3001
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

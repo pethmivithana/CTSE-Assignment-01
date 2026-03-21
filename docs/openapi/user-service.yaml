@@ -1,0 +1,85 @@
+openapi: 3.0.3
+info:
+  title: Feedo User Service API
+  description: User authentication, registration, and profile management
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:5002
+  - url: /api
+    description: Via API Gateway
+
+paths:
+  /auth/register:
+    post:
+      summary: Register new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fullName, email, password, contactNumber, role]
+              properties:
+                fullName: { type: string }
+                email: { type: string, format: email }
+                password: { type: string }
+                contactNumber: { type: string }
+                role: { type: string, enum: [customer, restaurantManager, deliveryPerson, admin] }
+                restaurantName: { type: string }
+                restaurantAddress: { type: string }
+                vehicleType: { type: string }
+                vehicleModel: { type: string }
+                licensePlate: { type: string }
+                driverLicense: { type: string }
+                nicNumber: { type: string }
+      responses:
+        '201':
+          description: User registered
+        '400':
+          description: Validation error
+
+  /auth/login:
+    post:
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string }
+                password: { type: string }
+      responses:
+        '200':
+          description: Login successful, returns token
+        '401':
+          description: Invalid credentials
+
+  /users/profile:
+    get:
+      summary: Get profile (requires auth)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: User profile
+
+  /users/me/register-driver:
+    post:
+      summary: Sync driver profile with delivery service
+      description: For approved delivery persons - creates driver record if missing
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Driver synced
+        '403':
+          description: Not approved or not delivery person
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

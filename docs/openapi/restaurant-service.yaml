@@ -1,0 +1,131 @@
+openapi: 3.0.3
+info:
+  title: Feedo Restaurant Service API
+  description: Restaurants, menus, reviews, uploads. Integrates with Order and User services.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:3002/api/restaurants
+  - url: /api/restaurants
+    description: Via API Gateway
+
+tags:
+  - name: Restaurants
+  - name: Manager
+  - name: Reviews
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+paths:
+  /:
+    get:
+      tags: [Restaurants]
+      summary: List restaurants
+      responses:
+        '200': { description: Restaurant list }
+    post:
+      tags: [Restaurants]
+      summary: Create restaurant (admin/internal)
+      responses:
+        '201': { description: Created }
+
+  /internal/create-for-manager:
+    post:
+      tags: [Restaurants]
+      summary: Idempotent create for approved manager (from User Service)
+      responses:
+        '200': { description: Restaurant }
+
+  /my-restaurant:
+    get:
+      tags: [Manager]
+      summary: Get or create my restaurant
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Restaurant }
+    put:
+      tags: [Manager]
+      summary: Update my restaurant
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Updated }
+
+  /my-restaurant/availability:
+    patch:
+      tags: [Manager]
+      summary: Update open / delivery availability
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+
+  /{id}:
+    get:
+      tags: [Restaurants]
+      summary: Get restaurant by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Restaurant }
+    put:
+      tags: [Restaurants]
+      summary: Update restaurant
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Updated }
+    delete:
+      tags: [Restaurants]
+      summary: Delete restaurant
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Deleted }
+
+  /{id}/reviews:
+    get:
+      tags: [Reviews]
+      summary: List reviews for restaurant
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Reviews }
+    post:
+      tags: [Reviews]
+      summary: Create or update review (customer)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Review saved }
+
+  /{id}/delivery-check:
+    get:
+      tags: [Restaurants]
+      summary: Check if restaurant delivers to lat/lng
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Availability check }

@@ -1,0 +1,83 @@
+openapi: 3.0.3
+info:
+  title: Feedo API Gateway — Route Map
+  description: |
+    Single entry point (default port **3001**). Routes proxy to backend services.
+    Authenticated routes expect `Authorization: Bearer <JWT>`.
+
+    **Per-service OpenAPI:** see `user-service.yaml`, `restaurant-service.yaml`, `order-service.yaml`,
+    `delivery-service.yaml`, `payment-service.yaml`, `notification-service.yaml`.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:3001
+
+tags:
+  - name: Auth
+  - name: Users
+  - name: Core APIs
+
+paths:
+  /health:
+    get:
+      tags: [Core APIs]
+      summary: Gateway health
+      responses:
+        '200': { description: API Gateway is running }
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Proxied to User Service
+      responses:
+        '200':
+          description: Login success; see user-service.yaml for token and user body schema
+
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Proxied to User Service
+      responses:
+        '201': { description: Registered }
+
+  /api/orders:
+    get:
+      tags: [Core APIs]
+      summary: Order Service — see order-service.yaml (prefix /api/orders)
+      responses:
+        '200': { description: Proxied }
+
+  /api/restaurants:
+    get:
+      tags: [Core APIs]
+      summary: Restaurant Service
+      responses:
+        '200': { description: Proxied }
+
+  /api/delivery:
+    get:
+      tags: [Core APIs]
+      summary: Delivery Service
+      responses:
+        '200': { description: Proxied }
+
+  /api/payments:
+    get:
+      tags: [Core APIs]
+      summary: Payment Service
+      responses:
+        '200': { description: Proxied }
+
+  /api/notifications:
+    get:
+      tags: [Core APIs]
+      summary: Notification Service
+      responses:
+        '200': { description: Proxied }
+
+  /users/profile:
+    get:
+      tags: [Users]
+      summary: User profile (auth)
+      responses:
+        '200': { description: Proxied }

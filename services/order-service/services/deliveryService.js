@@ -1,0 +1,60 @@
+const axios = require('axios');
+const restaurantClient = require('./restaurantClient');
+
+const DELIVERY_SERVICE_URL = process.env.DELIVERY_SERVICE_URL || 'http://localhost:3003';
+
+exports.requestDriverAssignment = async (order) => {
+  try {
+    const restaurant = await restaurantClient.getRestaurantById(order.restaurantId);
+    const pickupLat = restaurant?.location?.latitude ?? 6.9271;
+    const pickupLon = restaurant?.location?.longitude ?? 79.8612;
+    const dropoffLat = order.deliveryAddress?.latitude ?? pickupLat;
+    const dropoffLon = order.deliveryAddress?.longitude ?? pickupLon;
+
+    const deliveryPayload = {
+      orderId: order._id.toString(),
+      restaurantId: order.restaurantId.toString(),
+      customerId: order.customerId.toString(),
+      orderDetails: {
+        items: order.items.map(i => ({ name: i.name, quantity: i.quantity, price: i.price })),
+        totalAmount: order.totalAmount
+      },
+      pickupLocation: {
+        address: restaurant?.location?.address || `${order.deliveryAddress?.street || ''}, ${order.deliveryAddress?.city || ''}`.trim() || 'Restaurant',
+        latitude: pickupLat,
+        longitude: pickupLon
+      },
+      dropoffLocation: {
+        address: `${order.deliveryAddress?.street || ''}, ${order.deliveryAddress?.city || ''} ${order.deliveryAddress?.postalCode || ''}`.trim() || 'Customer address',
+        latitude: dropoffLat,
+        longitude: dropoffLon
+      },
+      deliveryNotes: order.deliveryAddress?.additionalInfo || '',
+      deliveryFee: order.deliveryFee || 0
+    };
+
+    const response = await axios.post(`${DELIVERY_SERVICE_URL}/api/delivery/deliveries`, deliveryPayload, {
+      headers: { 'Content-Type': 'application/json' },
+      timeout: 10000
+    });
+    return response.data;
+  } catch (err) {
+    console.warn('Delivery service request failed:', err.message, err.response?.data);
+    return null;
+  }
+};
+
+exports.cancelDeliveryByOrderId = async (orderId) => {
+  try {
+    const response = await axios.post(
+      `${DELIVERY_SERVICE_URL}/api/delivery/deliveries/cancel-by-order/${orderId}`,
+      {},
+      { headers: { 'Content-Type': 'application/json' }, timeout: 5000 }
+    );
+    return response.data;
+  } catch (err) {
+    if (err.response?.status === 404) return null;
+    console.warn('Delivery cancel failed:', err.message);
+    return null;
+  }
+};

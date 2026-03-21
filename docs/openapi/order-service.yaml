@@ -1,0 +1,166 @@
+openapi: 3.0.3
+info:
+  title: Feedo Order Service API
+  description: |
+    Order lifecycle, coupons, tracking. Integrates with User, Restaurant, Delivery, Payment, Notification services.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:3004/api/orders
+  - url: /api/orders
+    description: Via API Gateway (port 3001)
+
+tags:
+  - name: Orders
+  - name: Internal
+  - name: Tracking
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - bearerAuth: []
+
+paths:
+  /payment/webhook:
+    post:
+      tags: [Internal]
+      summary: Payment status webhook (from Payment Service)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                orderId: { type: string }
+                paymentId: { type: string }
+                status: { type: string }
+      responses:
+        '200': { description: Acknowledged }
+
+  /validate-coupon:
+    post:
+      tags: [Orders]
+      summary: Validate coupon before checkout
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code: { type: string }
+                orderTotal: { type: number }
+      responses:
+        '200': { description: Validation result }
+
+  /track/{id}:
+    get:
+      tags: [Tracking]
+      summary: Public order tracking (timeline)
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Tracking payload }
+
+  /:
+    post:
+      tags: [Orders]
+      summary: Create order (customer)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '201': { description: Order created }
+
+  /me:
+    get:
+      tags: [Orders]
+      summary: List current customer's orders
+      responses:
+        '200': { description: Order list }
+
+  /{id}:
+    get:
+      tags: [Orders]
+      summary: Get order by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Order }
+    put:
+      tags: [Orders]
+      summary: Modify pending order
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Updated }
+
+  /{id}/status:
+    patch:
+      tags: [Orders]
+      summary: Update order status (restaurant manager)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status: { type: string }
+                estimatedPreparationTime: { type: number }
+      responses:
+        '200': { description: Updated }
+
+  /{id}/cancel:
+    patch:
+      tags: [Orders]
+      summary: Cancel order (customer)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Cancelled }
+
+  /{id}/status-update:
+    patch:
+      tags: [Internal]
+      summary: Internal status sync (e.g. from Delivery Service)
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Updated }
+
+  /restaurant:
+    get:
+      tags: [Orders]
+      summary: Orders for manager's restaurant
+      responses:
+        '200': { description: Orders }

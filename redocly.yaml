@@ -1,0 +1,12 @@
+# Redocly CLI — OpenAPI lint for docs/openapi/
+# Run: npx @redocly/cli lint docs/openapi/*.yaml
+extends:
+  - recommended
+
+rules:
+  # Academic / local-dev specs: public auth endpoints and localhost servers are intentional
+  security-defined: off
+  info-license: off
+  no-server-example.com: off
+  operation-operationId: warn
+  operation-4xx-response: warn

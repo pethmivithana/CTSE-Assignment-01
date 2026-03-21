@@ -1,0 +1,38 @@
+# DevSecOps - SAST with SonarCloud
+# Add SONAR_TOKEN to GitHub repo Secrets (from sonarcloud.io)
+name: SonarCloud Analysis
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  sonarcloud:
+    name: SonarCloud
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: |
+          for dir in services/user-service services/restaurant-service services/order-service services/delivery-service services/payment-service services/notification-service api_gateway; do
+            [ -f "$dir/package.json" ] && (cd $dir && npm ci 2>/dev/null || npm install 2>/dev/null || true)
+          done
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        # SONAR_TOKEN: Create at https://sonarcloud.io → My Account → Security

@@ -1,0 +1,46 @@
+{
+  "family": "feedo-api-gateway",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "512",
+  "executionRoleArn": "arn:aws:iam::ACCOUNT_ID:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::ACCOUNT_ID:role/feedo-gateway-task-role",
+  "containerDefinitions": [
+    {
+      "name": "api-gateway",
+      "image": "ghcr.io/YOUR_ORG/feedo-api-gateway:latest",
+      "portMappings": [{ "containerPort": 3001, "protocol": "tcp" }],
+      "environment": [
+        { "name": "PORT", "value": "3001" },
+        { "name": "USER_SERVICE_URL", "value": "http://user-service.feedo.local:3001" },
+        { "name": "RESTAURANT_SERVICE_URL", "value": "http://restaurant-service.feedo.local:3002" },
+        { "name": "ORDER_SERVICE_URL", "value": "http://order-service.feedo.local:3004" },
+        { "name": "DELIVERY_SERVICE_URL", "value": "http://delivery-service.feedo.local:3003" },
+        { "name": "NOTIFICATION_SERVICE_URL", "value": "http://notification-service.feedo.local:3005" },
+        { "name": "PAYMENT_SERVICE_URL", "value": "http://payment-service.feedo.local:3006" }
+      ],
+      "secrets": [
+        {
+          "name": "JWT_SECRET",
+          "valueFrom": "arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:feedo/jwt"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/feedo-gateway",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "gateway"
+        }
+      },
+      "healthCheck": {
+        "command": ["CMD-SHELL", "wget -q -O- http://127.0.0.1:3001/health || exit 1"],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 40
+      }
+    }
+  ]
+}

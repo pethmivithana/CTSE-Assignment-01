@@ -1,0 +1,37 @@
+// File: docker-compose.yml
+version: '3'
+
+services:
+  delivery-service:
+    build: .
+    ports:
+      - "3003:3003"
+    environment:
+      - NODE_ENV=production
+      - PORT=3003
+      - MONGODB_URI=mongodb://mongo:27017/delivery_management
+      - JWT_SECRET=your_jwt_secret_here
+      - USER_SERVICE_URL=http://user-service:3001
+      - RESTAURANT_SERVICE_URL=http://restaurant-service:3002
+      - ORDER_SERVICE_URL=http://order-service:3004
+      - NOTIFICATION_SERVICE_URL=http://notification-service:3005
+    depends_on:
+      - mongo
+    networks:
+      - food-delivery-network
+
+  mongo:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - food-delivery-network
+
+networks:
+  food-delivery-network:
+    external: true
+
+volumes:
+  mongo-data:

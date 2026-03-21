@@ -1,0 +1,8 @@
+{"level":"error","message":"MongoDB connection error: connect ECONNREFUSED ::1:27017, connect ECONNREFUSED 127.0.0.1:27017","service":"delivery-management","timestamp":"2025-04-28 06:41:29"}
+{"level":"error","message":"Failed to send notification to driver 680edd15e086afed2a7c84df: ","service":"delivery-management","timestamp":"2025-04-28 08:15:55"}
+{"level":"error","message":"Failed to send notification to driver 680edd15e086afed2a7c84df: ","service":"delivery-management","timestamp":"2025-04-28 08:16:25"}
+{"level":"error","message":"Failed to send notification to driver 680edd15e086afed2a7c84df: ","service":"delivery-management","timestamp":"2025-04-28 08:17:21"}
+{"level":"error","message":"Failed to send notification to driver 680edd15e086afed2a7c84df: ","service":"delivery-management","timestamp":"2025-04-28 08:17:51"}
+{"level":"error","message":"Failed to send notification to driver 680edd15e086afed2a7c84df: ","service":"delivery-management","timestamp":"2025-04-28 08:18:21"}
+{"level":"error","message":"Failed to send notification to restaurant 60d5ec9a9a8f8b3a3c3e3e43: ","service":"delivery-management","timestamp":"2025-04-28 08:18:42"}
+{"level":"error","message":"Failed to send notification to user 60d5ec9a9a8f8b3a3c3e3e44: ","service":"delivery-management","timestamp":"2025-04-28 08:18:42"}

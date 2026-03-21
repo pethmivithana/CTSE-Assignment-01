@@ -1,0 +1,117 @@
+openapi: 3.0.3
+info:
+  title: Feedo Payment Service API
+  description: |
+    Stripe, wallet, PayPal, COD. Notifies Order Service on payment events and Notification Service for customer alerts.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:3006/api/payments
+  - url: /api/payments
+    description: Via API Gateway
+
+tags:
+  - name: Payments
+  - name: Wallet
+  - name: Webhooks
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+paths:
+  /create-intent:
+    post:
+      tags: [Payments]
+      summary: Create Stripe PaymentIntent
+      security: [{ bearerAuth: [] }]
+      responses:
+        '201': { description: clientSecret returned }
+
+  /create:
+    post:
+      tags: [Payments]
+      summary: Simulated card payment
+      security: [{ bearerAuth: [] }]
+      responses:
+        '201': { description: Payment result }
+
+  /cod:
+    post:
+      tags: [Payments]
+      summary: Record cash-on-delivery
+      security: [{ bearerAuth: [] }]
+      responses:
+        '201': { description: Recorded }
+
+  /wallet/balance:
+    get:
+      tags: [Wallet]
+      summary: Wallet balance
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Balance }
+
+  /wallet/topup:
+    post:
+      tags: [Wallet]
+      summary: Top up wallet
+      security: [{ bearerAuth: [] }]
+      responses:
+        '201': { description: Credited }
+
+  /wallet/pay:
+    post:
+      tags: [Wallet]
+      summary: Pay from wallet
+      security: [{ bearerAuth: [] }]
+      responses:
+        '201': { description: Debited }
+
+  /paypal/create-order:
+    post:
+      tags: [Payments]
+      summary: Create PayPal order
+      security: [{ bearerAuth: [] }]
+      responses:
+        '201': { description: approvalUrl }
+
+  /paypal/capture:
+    post:
+      tags: [Payments]
+      summary: Capture PayPal payment
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Captured }
+
+  /webhook:
+    post:
+      tags: [Webhooks]
+      summary: Stripe webhook (raw body)
+      security: []
+      responses:
+        '200': { description: received }
+
+  /history/me:
+    get:
+      tags: [Payments]
+      summary: Payment history
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: History }
+
+  /{id}:
+    get:
+      tags: [Payments]
+      summary: Get payment by ID
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Payment }

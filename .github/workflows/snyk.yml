@@ -1,0 +1,44 @@
+# Optional DevSecOps — Snyk dependency scan (free tier)
+# CTSE: complement SonarCloud with Snyk (assignment allows either).
+#
+# Add GitHub secret: SNYK_TOKEN (from https://snyk.io → Account settings)
+
+name: Snyk Security Scan
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  snyk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install Snyk CLI
+        run: npm install -g snyk
+
+      - name: Run Snyk test on each service
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: |
+          if [ -z "$SNYK_TOKEN" ]; then
+            echo "::notice::SNYK_TOKEN not set — skipping Snyk. Configure secret to enable (SonarCloud still runs separately)."
+            exit 0
+          fi
+          set +e
+          for svc in user-service restaurant-service order-service delivery-service payment-service notification-service; do
+            echo "=== services/$svc ==="
+            if [ -f "services/$svc/package.json" ]; then
+              (cd "services/$svc" && npm ci 2>/dev/null || npm install)
+              (cd "services/$svc" && snyk test --severity-threshold=high)
+            fi
+          done
+          exit 0

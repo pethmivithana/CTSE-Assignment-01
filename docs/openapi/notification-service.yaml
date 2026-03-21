@@ -1,0 +1,132 @@
+openapi: 3.0.3
+info:
+  title: Feedo Notification Service API
+  description: |
+    Event-driven notifications (email, in-app, optional FCM). Called by Order, Payment, Delivery services.
+    User inbox requires JWT; internal routes may use x-internal-key.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:3005/api/notifications
+  - url: /api/notifications
+    description: Via API Gateway
+
+tags:
+  - name: Inbox
+  - name: Preferences
+  - name: Internal
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+paths:
+  /health:
+    get:
+      tags: [Internal]
+      summary: Health check
+      responses:
+        '200': { description: OK }
+
+  /me:
+    get:
+      tags: [Inbox]
+      summary: List notifications for logged-in user
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20 }
+      responses:
+        '200':
+          description: notifications, pagination, unreadCount
+
+  /{id}/read:
+    patch:
+      tags: [Inbox]
+      summary: Mark one notification as read
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Updated }
+
+  /read-all:
+    post:
+      tags: [Inbox]
+      summary: Mark all as read
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: OK }
+
+  /preferences/me:
+    get:
+      tags: [Preferences]
+      summary: Get email/push/order flags
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: preferences }
+    put:
+      tags: [Preferences]
+      summary: Update preferences
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email: { type: boolean }
+                push: { type: boolean }
+                orderUpdates: { type: boolean }
+                paymentAlerts: { type: boolean }
+                deliveryAlerts: { type: boolean }
+                marketing: { type: boolean }
+      responses:
+        '200': { description: Saved }
+
+  /send:
+    post:
+      tags: [Internal]
+      summary: Generic dispatch (microservices)
+      description: Optional header x-internal-key when INTERNAL_API_KEY is set
+      security: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                recipientType: { type: string, enum: [customer, driver, restaurant] }
+                recipientId: { type: string }
+                recipientUserId: { type: string }
+                type: { type: string }
+                title: { type: string }
+                data: { type: object }
+      responses:
+        '200': { description: Queued }
+
+  /order-placed:
+    post:
+      tags: [Internal]
+      summary: Trigger order-placed emails/in-app
+      security: []
+      responses:
+        '200': { description: OK }
+
+  /payment-result:
+    post:
+      tags: [Internal]
+      summary: Payment success/failure notification
+      security: []
+      responses:
+        '200': { description: OK }

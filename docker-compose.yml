@@ -1,0 +1,214 @@
+services:
+  # MongoDB - shared database
+  mongodb:
+    image: mongo:7
+    container_name: feedo-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - feedo-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # API Gateway - main entry point
+  api-gateway:
+    build:
+      context: ./api_gateway
+      dockerfile: Dockerfile
+    container_name: feedo-api-gateway
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - USER_SERVICE_URL=http://user-service:3001
+      - RESTAURANT_SERVICE_URL=http://restaurant-service:3002
+      - ORDER_SERVICE_URL=http://order-service:3004
+      - DELIVERY_SERVICE_URL=http://delivery-service:3003
+      - NOTIFICATION_SERVICE_URL=http://notification-service:3005
+      - PAYMENT_SERVICE_URL=http://payment-service:3006
+      - JWT_SECRET=${JWT_SECRET:-your_jwt_secret_change_in_production}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      user-service:
+        condition: service_started
+      payment-service:
+        condition: service_started
+      notification-service:
+        condition: service_started
+    networks:
+      - feedo-network
+
+  # User Service
+  user-service:
+    build:
+      context: ./services/user-service
+      dockerfile: Dockerfile
+    container_name: feedo-user-service
+    expose:
+      - "3001"
+    environment:
+      - PORT=3001
+      - MONGO_URI=mongodb://mongodb:27017/user_management
+      - JWT_SECRET=${JWT_SECRET:-your_jwt_secret_change_in_production}
+      - ORDER_SERVICE_URL=http://order-service:3004
+      - RESTAURANT_SERVICE_URL=http://restaurant-service:3002
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_SECURE=${SMTP_SECURE:-false}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
+      - SMTP_FROM=${SMTP_FROM:-noreply@feedo.com}
+      - APP_URL=${APP_URL:-http://localhost:3000}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - feedo-network
+
+  # Restaurant Service
+  restaurant-service:
+    build:
+      context: ./services/restaurant-service
+      dockerfile: Dockerfile
+    container_name: feedo-restaurant-service
+    ports:
+      - "3002:3002"
+    environment:
+      - PORT=3002
+      - MONGODB_URI=mongodb://mongodb:27017/restaurant_db
+      - ORDER_SERVICE_URL=http://order-service:3004
+    volumes:
+      - restaurant_uploads:/usr/src/app/uploads
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - feedo-network
+
+  # Order Service
+  order-service:
+    build:
+      context: ./services/order-service
+      dockerfile: Dockerfile
+    container_name: feedo-order-service
+    expose:
+      - "3004"
+    environment:
+      - PORT=3004
+      - MONGO_URI=mongodb://mongodb:27017/order_management
+      - USER_SERVICE_URL=http://user-service:3001
+      - RESTAURANT_SERVICE_URL=http://restaurant-service:3002
+      - DELIVERY_SERVICE_URL=http://delivery-service:3003
+      - NOTIFICATION_SERVICE_URL=http://notification-service:3005
+      - JWT_SECRET=${JWT_SECRET:-your_jwt_secret_change_in_production}
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY:-}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      restaurant-service:
+        condition: service_started
+      notification-service:
+        condition: service_started
+    networks:
+      - feedo-network
+
+  # Notification Service
+  notification-service:
+    build:
+      context: ./services/notification-service
+      dockerfile: Dockerfile
+    container_name: feedo-notification-service
+    expose:
+      - "3005"
+    environment:
+      - PORT=3005
+      - APP_URL=${APP_URL:-http://localhost:3000}
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_SECURE=${SMTP_SECURE:-false}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
+      - SMTP_FROM=${SMTP_FROM:-noreply@feedo.com}
+    networks:
+      - feedo-network
+
+  # Payment Service
+  payment-service:
+    build:
+      context: ./services/payment-service
+      dockerfile: Dockerfile
+    container_name: feedo-payment-service
+    expose:
+      - "3006"
+    environment:
+      - PORT=3006
+      - MONGO_URI=mongodb://mongodb:27017/payment_db
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}
+      - ORDER_SERVICE_URL=http://order-service:3004
+      - NOTIFICATION_SERVICE_URL=http://notification-service:3005
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY:-}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      notification-service:
+        condition: service_started
+    networks:
+      - feedo-network
+
+  # Delivery Service
+  delivery-service:
+    build:
+      context: ./services/delivery-service
+      dockerfile: Dockerfile
+    container_name: feedo-delivery-service
+    ports:
+      - "3003:3003"
+    environment:
+      - NODE_ENV=production
+      - PORT=3003
+      - MONGODB_URI=mongodb://mongodb:27017/delivery_management
+      - JWT_SECRET=${JWT_SECRET:-your_jwt_secret_change_in_production}
+      - USER_SERVICE_URL=http://user-service:3001
+      - RESTAURANT_SERVICE_URL=http://restaurant-service:3002
+      - ORDER_SERVICE_URL=http://order-service:3004
+      - NOTIFICATION_SERVICE_URL=http://notification-service:3005
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY:-}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      order-service:
+        condition: service_started
+    networks:
+      - feedo-network
+
+  # Frontend - React app
+  frontend:
+    build:
+      context: ./food-delivery-frontend
+      dockerfile: Dockerfile
+      args:
+        - REACT_APP_API_URL=${REACT_APP_API_URL:-http://localhost:3001}
+        - REACT_APP_STRIPE_PUBLISHABLE_KEY=${REACT_APP_STRIPE_PUBLISHABLE_KEY:-}
+    container_name: feedo-frontend
+    ports:
+      - "3000:80"
+    environment:
+      - REACT_APP_API_URL=http://localhost:3001
+    depends_on:
+      - api-gateway
+    networks:
+      - feedo-network
+
+networks:
+  feedo-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+  restaurant_uploads:

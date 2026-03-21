@@ -1,0 +1,48 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply font-sans text-gray-800 antialiased bg-white;
+  }
+  h1, h2, h3 {
+    @apply font-display font-semibold;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply px-6 py-3 rounded-xl font-medium text-white bg-primary-500 hover:bg-primary-600 
+           transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100
+           shadow-md hover:shadow-lg;
+  }
+  .btn-secondary {
+    @apply px-6 py-3 rounded-xl font-medium text-primary-600 bg-white hover:bg-primary-50 
+           transition-all duration-200 border-2 border-primary-200 hover:border-primary-300;
+  }
+  .input-field {
+    @apply w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-white 
+           focus:outline-none focus:ring-2 focus:ring-primary-500/25 focus:border-primary-500
+           placeholder:text-gray-400 transition-all duration-200;
+  }
+  .card {
+    @apply bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden
+           transition-all duration-300 hover:shadow-xl hover:shadow-gray-200/50 hover:-translate-y-0.5;
+  }
+  .card-flat {
+    @apply bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "feedo",
+  "version": "1.0.0",
+  "description": "Microservice-based ecommerce application",
+  "scripts": {
+    "dev": "node dev.js",
+    "dev:logs": "docker compose logs -f",
+    "dev:down": "docker compose down",
+    "dev:mongo": "docker compose -f docker-compose.mongo.yml up -d",
+    "dev:mongo:down": "docker compose -f docker-compose.mongo.yml down"
+  }
+}
