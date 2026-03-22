@@ -12,6 +12,8 @@ const AdminDashboard = () => {
   const [tab, setTab] = useState('users'); // 'users' | 'coupons'
   const [users, setUsers] = useState([]);
   const [filter, setFilter] = useState('pending'); // 'pending' | 'all'
+  /** 'all' | 'customer' | 'restaurantManager' | 'deliveryPerson' */
+  const [roleFilter, setRoleFilter] = useState('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [approveModal, setApproveModal] = useState(null);
@@ -43,10 +45,110 @@ const AdminDashboard = () => {
     (u.role === 'restaurantManager' || u.role === 'deliveryPerson') && !u.isApproved;
   const nonAdminUsers = users.filter((u) => u.role !== 'admin');
   const pendingUsers = nonAdminUsers.filter(needsApproval);
+  const approvedNonAdmin = nonAdminUsers.filter((u) => !needsApproval(u));
+
+  /** Same order as before: pending first, then everyone else (when filter === 'all') */
+  const orderedUsers =
+    filter === 'pending' ? pendingUsers : [...pendingUsers, ...approvedNonAdmin];
+
   const displayUsers =
-    filter === 'pending'
-      ? pendingUsers
-      : [...pendingUsers, ...nonAdminUsers.filter((u) => !needsApproval(u))];
+    roleFilter === 'all'
+      ? orderedUsers
+      : orderedUsers.filter((u) => u.role === roleFilter);
+
+  const countRole = (role) => nonAdminUsers.filter((u) => u.role === role).length;
+  const countPendingRole = (role) => pendingUsers.filter((u) => u.role === role).length;
+
+  const roleLabel = (role) => {
+    switch (role) {
+      case 'customer':
+        return 'Customer';
+      case 'restaurantManager':
+        return 'Restaurant manager';
+      case 'deliveryPerson':
+        return 'Delivery person';
+      default:
+        return role || '—';
+    }
+  };
+
+  const roleBadgeClass = (role) => {
+    switch (role) {
+      case 'customer':
+        return 'bg-slate-100 text-slate-700';
+      case 'restaurantManager':
+        return 'bg-orange-100 text-orange-800';
+      case 'deliveryPerson':
+        return 'bg-violet-100 text-violet-800';
+      default:
+        return 'bg-gray-100 text-gray-700';
+    }
+  };
+
+  /** Full driver + restaurant details for the Details column */
+  const renderUserDetails = (u) => {
+    if (u.role === 'restaurantManager') {
+      const ri = u.restaurantInfo;
+      if (!ri?.name && !ri?.address) {
+        return <span className="text-gray-400">—</span>;
+      }
+      return (
+        <div className="text-sm space-y-0.5 max-w-xs">
+          {ri?.name && <div className="font-medium text-gray-800">{ri.name}</div>}
+          {ri?.address && <div className="text-gray-600 text-xs leading-snug">{ri.address}</div>}
+          {ri?.id && <div className="text-gray-500 text-xs">ID: {ri.id}</div>}
+        </div>
+      );
+    }
+    if (u.role === 'deliveryPerson') {
+      const dp = u.driverProfile || {};
+      const vd = dp.vehicleDetails || {};
+      return (
+        <div className="text-sm space-y-1 max-w-md text-left">
+          <div className="font-medium text-gray-800 border-b border-gray-100 pb-1 mb-1">Driver profile</div>
+          <div>
+            <span className="text-gray-500">Vehicle type: </span>
+            <span className="text-gray-800">{dp.vehicleType || '—'}</span>
+          </div>
+          <div>
+            <span className="text-gray-500">Model: </span>
+            <span className="text-gray-800">{vd.model || '—'}</span>
+          </div>
+          <div>
+            <span className="text-gray-500">License plate: </span>
+            <span className="text-gray-800">{vd.licensePlate || '—'}</span>
+          </div>
+          <div>
+            <span className="text-gray-500">Driver&apos;s license: </span>
+            <span className="text-gray-800 font-mono text-xs">{dp.driverLicense || '—'}</span>
+          </div>
+          <div>
+            <span className="text-gray-500">NIC: </span>
+            <span className="text-gray-800 font-mono text-xs">{dp.nicNumber || '—'}</span>
+          </div>
+          <div>
+            <span className="text-gray-500">Profile verified: </span>
+            <span className={dp.isVerified ? 'text-green-700 font-medium' : 'text-amber-700'}>
+              {dp.isVerified ? 'Yes' : 'No'}
+            </span>
+          </div>
+        </div>
+      );
+    }
+    if (u.role === 'customer') {
+      return (
+        <div className="text-sm text-gray-600 max-w-xs">
+          <span className="text-gray-400">Customer account</span>
+          {u.addresses?.length > 0 && (
+            <div className="mt-1 text-xs text-gray-500">
+              {u.addresses.length} saved address{u.addresses.length !== 1 ? 'es' : ''}
+            </div>
+          )}
+        </div>
+      );
+    }
+    return <span className="text-gray-400">—</span>;
+  };
 
   const approveUser = async (userToApprove) => {
     if (!userToApprove) return;
@@ -294,44 +396,82 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {tab === 'users' && <div className="flex flex-wrap items-center gap-2 mb-6">
-          <button
-            onClick={() => setFilter('pending')}
-            disabled={loading}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              filter === 'pending' ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            Pending ({pendingUsers.length})
-          </button>
-          <button
-            onClick={() => setFilter('all')}
-            disabled={loading}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              filter === 'all' ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            All Users ({nonAdminUsers.length})
-          </button>
-          <button
-            onClick={() => fetchUsers()}
-            disabled={loading}
-            className="ml-auto px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-50"
-          >
-            Refresh
-          </button>
-        </div>}
+        {tab === 'users' && (
+          <div className="space-y-3 mb-6">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setFilter('pending')}
+                disabled={loading}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  filter === 'pending' ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                Pending ({pendingUsers.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilter('all')}
+                disabled={loading}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  filter === 'all' ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                All users ({nonAdminUsers.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => fetchUsers()}
+                disabled={loading}
+                className="ml-auto px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-50"
+              >
+                Refresh
+              </button>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide w-full sm:w-auto sm:mr-1">
+                Role
+              </span>
+              {[
+                { key: 'all', label: 'All roles' },
+                { key: 'customer', label: 'Customers' },
+                { key: 'restaurantManager', label: 'Restaurant managers' },
+                { key: 'deliveryPerson', label: 'Delivery persons' },
+              ].map(({ key, label }) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setRoleFilter(key)}
+                  disabled={loading}
+                  className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors border ${
+                    roleFilter === key
+                      ? 'bg-gray-800 text-white border-gray-800'
+                      : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                  }`}
+                >
+                  {label}
+                  {key !== 'all' && (
+                    <span className="ml-1 opacity-80">
+                      ({countRole(key)}
+                      {filter === 'pending' ? ` · ${countPendingRole(key)} pending` : ''})
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {tab === 'users' && <div className="card overflow-hidden">
-          <div className="w-full overflow-visible">
-            <table className="w-full table-auto">
+          <div className="w-full overflow-x-auto">
+            <table className="w-full table-auto min-w-[900px]">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100">
                   <th className="py-4 px-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Name</th>
                   <th className="py-4 px-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Email</th>
                   <th className="py-4 px-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Contact</th>
                   <th className="py-4 px-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Role</th>
-                  <th className="py-4 px-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Details</th>
+                  <th className="py-4 px-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[280px]">Details</th>
                   <th className="py-4 px-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Registered</th>
                   <th className="py-4 px-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Status</th>
                   <th className="py-4 px-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Actions</th>
@@ -339,20 +479,16 @@ const AdminDashboard = () => {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {displayUsers.map((u) => (
-                  <tr key={u._id} className="hover:bg-gray-50/50 transition-colors">
+                  <tr key={u._id} className="hover:bg-gray-50/50 transition-colors align-top">
                     <td className="py-4 px-4 font-medium text-gray-800 whitespace-nowrap">{u.fullName}</td>
                     <td className="py-4 px-4 text-gray-600 break-all min-w-0">{u.email}</td>
                     <td className="py-4 px-4 text-gray-600 whitespace-nowrap">{u.contactNumber}</td>
                     <td className="py-4 px-4">
-                      <span className="capitalize text-gray-600 whitespace-nowrap">{u.role?.replace(/([A-Z])/g, ' $1').trim()}</span>
+                      <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium capitalize ${roleBadgeClass(u.role)}`}>
+                        {roleLabel(u.role)}
+                      </span>
                     </td>
-                    <td className="py-4 px-4 text-gray-600 text-sm min-w-0">
-                      {u.role === 'restaurantManager' && u.restaurantInfo?.name
-                        ? <span title={u.restaurantInfo?.address} className="break-words">{u.restaurantInfo.name}</span>
-                        : u.role === 'deliveryPerson' && u.driverProfile?.vehicleType
-                        ? <span>{u.driverProfile.vehicleType}</span>
-                        : <span className="text-gray-400">—</span>}
-                    </td>
+                    <td className="py-4 px-4 text-gray-600 text-sm min-w-0">{renderUserDetails(u)}</td>
                     <td className="py-4 px-4 text-gray-600 text-sm whitespace-nowrap">{formatDate(u.createdAt)}</td>
                     <td className="py-4 px-4">
                       <span className={`px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap ${u.isApproved ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
@@ -382,10 +518,21 @@ const AdminDashboard = () => {
             </table>
           </div>
           {displayUsers.length === 0 && (
-            <div className="py-16 text-center text-gray-500">
-              {filter === 'pending'
-                ? 'No pending approvals. New restaurant managers and delivery persons will appear here after they register.'
-                : 'No users found.'}
+            <div className="py-16 text-center text-gray-500 px-4">
+              {roleFilter !== 'all' ? (
+                <>
+                  No users match <strong>{roleLabel(roleFilter)}</strong>
+                  {filter === 'pending' ? ' in pending approvals' : ''}. Try another role or switch to{' '}
+                  <button type="button" className="text-primary-600 underline" onClick={() => setRoleFilter('all')}>
+                    All roles
+                  </button>
+                  .
+                </>
+              ) : filter === 'pending' ? (
+                'No pending approvals. New restaurant managers and delivery persons will appear here after they register.'
+              ) : (
+                'No users found.'
+              )}
             </div>
           )}
         </div>}
