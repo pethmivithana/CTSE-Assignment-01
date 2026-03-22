@@ -128,6 +128,9 @@ services:
       - "3005"
     environment:
       - PORT=3005
+      # Must match user-service / API gateway — required for JWT on /api/notifications/*
+      - JWT_SECRET=${JWT_SECRET:-your_jwt_secret_here}
+      - MONGODB_URI=mongodb://mongodb:27017/notification_db
       - APP_URL=${APP_URL:-http://localhost:3000}
       - SMTP_HOST=${SMTP_HOST:-smtp.gmail.com}
       - SMTP_PORT=${SMTP_PORT:-587}
@@ -135,6 +138,9 @@ services:
       - SMTP_USER=${SMTP_USER:-thakshilafonseka2002@gmail.com}
       - SMTP_PASS=${SMTP_PASS:-icyihyquonwjrwsb}
       - SMTP_FROM=${SMTP_FROM:-thakshilafonseka2002@gmail.com}
+    depends_on:
+      mongodb:
+        condition: service_healthy
     networks:
       - feedo-network
 
