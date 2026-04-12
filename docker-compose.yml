@@ -25,7 +25,7 @@ services:
       - "3001:3001"
     environment:
       - PORT=3001
-      - USER_SERVICE_URL=http://user-service:3001
+      - USER_SERVICE_URL=http://user-service:5002
       - RESTAURANT_SERVICE_URL=http://restaurant-service:3002
       - ORDER_SERVICE_URL=http://order-service:3004
       - DELIVERY_SERVICE_URL=http://delivery-service:3003
@@ -51,9 +51,9 @@ services:
       dockerfile: Dockerfile
     container_name: feedo-user-service
     expose:
-      - "3001"
+      - "5002"
     environment:
-      - PORT=3001
+      - PORT=5002
       - MONGO_URI=mongodb://mongodb:27017/user_db
       - JWT_SECRET=${JWT_SECRET:-your_jwt_secret_here}
       - ORDER_SERVICE_URL=http://order-service:3004
