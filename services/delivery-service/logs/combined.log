@@ -3565,3 +3565,178 @@
 {"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-03-21 23:22:15"}
 {"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-03-21 23:22:45"}
 {"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-03-21 23:22:45"}
+{"level":"info","message":"Schedulers initialized","service":"delivery-management","timestamp":"2026-04-12 23:57:22"}
+{"level":"info","message":"Connected to MongoDB","service":"delivery-management","timestamp":"2026-04-12 23:57:22"}
+{"level":"info","message":"Delivery Management Service running on port 3003","service":"delivery-management","timestamp":"2026-04-12 23:57:22"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-12 23:57:52"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-12 23:57:52"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-12 23:58:22"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-12 23:58:22"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-12 23:58:52"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-12 23:58:52"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-12 23:59:22"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-12 23:59:22"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-12 23:59:52"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-12 23:59:52"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:00:22"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:00:22"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:00:52"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:00:52"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:01:22"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:01:22"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:01:52"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:01:52"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:02:22"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:02:22"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:02:52"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:02:52"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:03:22"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:03:22"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:03:52"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:03:52"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:04:22"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:04:22"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:04:52"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:04:52"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:05:22"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:05:22"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:05:52"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:05:52"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:06:22"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:06:22"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:06:52"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:06:52"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:07:22"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:07:22"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:07:52"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:07:52"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:08:22"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:08:22"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:08:52"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:08:52"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:09:22"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:09:22"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:09:52"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:09:52"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:10:22"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:10:22"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:10:52"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:10:52"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:11:22"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:11:22"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:11:52"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:11:52"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:12:22"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:12:22"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:12:52"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:12:52"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:13:22"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:13:22"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:13:52"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:13:52"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:14:22"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:14:22"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:14:52"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:14:52"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:15:22"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:15:22"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:15:52"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:15:52"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:16:22"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:16:22"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:16:52"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:16:52"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:17:22"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:17:22"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:17:52"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:17:52"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:18:22"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:18:22"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:18:52"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:18:52"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:19:22"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:19:22"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:19:52"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:19:52"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:20:22"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:20:22"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:20:52"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:20:52"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:21:22"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:21:22"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:21:52"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:21:52"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:22:22"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:22:22"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:22:52"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:22:52"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:23:22"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:23:22"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:23:52"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:23:52"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:24:22"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:24:22"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:24:52"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:24:52"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:25:22"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:25:22"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:25:52"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:25:52"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:26:22"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:26:22"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:26:52"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:26:52"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:27:22"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:27:22"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:27:52"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:27:52"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:28:22"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:28:22"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:28:52"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:28:52"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:29:22"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:29:22"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:29:52"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:29:52"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:30:22"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:30:22"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:30:52"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:30:52"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:31:22"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:31:22"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:31:52"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:31:52"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:32:22"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:32:22"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:32:52"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:32:52"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:33:22"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:33:22"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:33:52"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:33:52"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:34:22"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:34:22"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:34:52"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:34:52"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:35:22"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:35:22"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:35:52"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:35:52"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:36:22"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:36:22"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:36:52"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:36:52"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:37:22"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:37:22"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:37:52"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:37:52"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:38:22"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:38:22"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:38:52"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:38:52"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:39:22"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:39:22"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:39:52"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:39:52"}
+{"level":"debug","message":"Running scheduled task: Process pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:40:22"}
+{"level":"info","message":"Processing 0 pending deliveries","service":"delivery-management","timestamp":"2026-04-13 00:40:22"}
