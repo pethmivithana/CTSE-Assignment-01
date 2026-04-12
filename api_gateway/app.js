@@ -1,5 +1,5 @@
 const express = require('express');
-const { createProxyMiddleware } = require('express-http-proxy');
+const httpProxy = require('http-proxy');
 const cors = require('cors');
 const dotenv = require('dotenv');
 
@@ -11,7 +11,8 @@ const app = express();
 app.use(cors());
 
 // JSON parsing middleware
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // Service URLs from environment variables
 // Local: http://localhost:PORT | Docker: http://service-name:PORT
@@ -27,55 +28,83 @@ app.get('/health', (req, res) => {
   res.json({ status: 'API Gateway is healthy', timestamp: new Date().toISOString() });
 });
 
-// Proxy middleware configuration
-const createProxyMiddlewareConfig = (target) => ({
-  target,
-  changeOrigin: true,
-  pathRewrite: (path, req) => {
-    console.log(`[Gateway] Proxying to ${target.split('://')[1].split(':')[0]}: ${req.method} ${path}`);
-    return path;
-  },
-  onProxyReq: (proxyReq, req, res) => {
-    // Forward JWT token if present
-    if (req.headers.authorization) {
-      proxyReq.setHeader('Authorization', req.headers.authorization);
-    }
-  },
-  onProxyRes: (proxyRes, req, res) => {
-    // Add gateway header
-    proxyRes.headers['X-Gateway'] = 'Feedo-API-Gateway';
-  },
-  onError: (err, req, res) => {
-    console.error('Proxy error:', err.message);
+// Create proxy instances for each service
+const createProxy = (target) => {
+  const proxy = httpProxy.createProxyServer({
+    target,
+    changeOrigin: true,
+    ws: false,
+  });
+
+  proxy.on('error', (err, req, res) => {
+    console.error('[Gateway] Proxy error:', err.message, 'Target:', target);
     res.status(503).json({
       error: 'Service unavailable',
       message: err.message,
-      service: req.baseUrl.split('/')[1],
     });
-  },
-});
+  });
+
+  return proxy;
+};
+
+const userProxy = createProxy(USER_SERVICE_URL);
+const restaurantProxy = createProxy(RESTAURANT_SERVICE_URL);
+const orderProxy = createProxy(ORDER_SERVICE_URL);
+const deliveryProxy = createProxy(DELIVERY_SERVICE_URL);
+const notificationProxy = createProxy(NOTIFICATION_SERVICE_URL);
+const paymentProxy = createProxy(PAYMENT_SERVICE_URL);
 
 // User Service routes
-app.use('/auth', createProxyMiddleware(createProxyMiddlewareConfig(USER_SERVICE_URL)));
-app.use('/users', createProxyMiddleware(createProxyMiddlewareConfig(USER_SERVICE_URL)));
+app.all('/auth/*', (req, res) => {
+  console.log(`[Gateway] ${req.method} /auth${req.path} → ${USER_SERVICE_URL}/auth${req.path}`);
+  userProxy.web(req, res);
+});
+app.all('/users/*', (req, res) => {
+  console.log(`[Gateway] ${req.method} /users${req.path} → ${USER_SERVICE_URL}/users${req.path}`);
+  userProxy.web(req, res);
+});
 
 // Restaurant Service routes
-app.use('/api/restaurants', createProxyMiddleware(createProxyMiddlewareConfig(RESTAURANT_SERVICE_URL)));
-app.use('/api/menus', createProxyMiddleware(createProxyMiddlewareConfig(RESTAURANT_SERVICE_URL)));
-app.use('/api/categories', createProxyMiddleware(createProxyMiddlewareConfig(RESTAURANT_SERVICE_URL)));
+app.all('/api/restaurants/*', (req, res) => {
+  console.log(`[Gateway] ${req.method} /api/restaurants${req.path} → ${RESTAURANT_SERVICE_URL}/api/restaurants${req.path}`);
+  restaurantProxy.web(req, res);
+});
+app.all('/api/menus/*', (req, res) => {
+  console.log(`[Gateway] ${req.method} /api/menus${req.path} → ${RESTAURANT_SERVICE_URL}/api/menus${req.path}`);
+  restaurantProxy.web(req, res);
+});
+app.all('/api/categories/*', (req, res) => {
+  console.log(`[Gateway] ${req.method} /api/categories${req.path} → ${RESTAURANT_SERVICE_URL}/api/categories${req.path}`);
+  restaurantProxy.web(req, res);
+});
 
 // Order Service routes
-app.use('/api/orders', createProxyMiddleware(createProxyMiddlewareConfig(ORDER_SERVICE_URL)));
-app.use('/api/coupons', createProxyMiddleware(createProxyMiddlewareConfig(ORDER_SERVICE_URL)));
+app.all('/api/orders/*', (req, res) => {
+  console.log(`[Gateway] ${req.method} /api/orders${req.path} → ${ORDER_SERVICE_URL}/api/orders${req.path}`);
+  orderProxy.web(req, res);
+});
+app.all('/api/coupons/*', (req, res) => {
+  console.log(`[Gateway] ${req.method} /api/coupons${req.path} → ${ORDER_SERVICE_URL}/api/coupons${req.path}`);
+  orderProxy.web(req, res);
+});
 
 // Delivery Service routes
-app.use('/api/delivery', createProxyMiddleware(createProxyMiddlewareConfig(DELIVERY_SERVICE_URL)));
+app.all('/api/delivery/*', (req, res) => {
+  console.log(`[Gateway] ${req.method} /api/delivery${req.path} → ${DELIVERY_SERVICE_URL}/api/delivery${req.path}`);
+  deliveryProxy.web(req, res);
+});
 
 // Notification Service routes
-app.use('/api/notifications', createProxyMiddleware(createProxyMiddlewareConfig(NOTIFICATION_SERVICE_URL)));
+app.all('/api/notifications/*', (req, res) => {
+  console.log(`[Gateway] ${req.method} /api/notifications${req.path} → ${NOTIFICATION_SERVICE_URL}/api/notifications${req.path}`);
+  notificationProxy.web(req, res);
+});
 
 // Payment Service routes
-app.use('/api/payments', createProxyMiddleware(createProxyMiddlewareConfig(PAYMENT_SERVICE_URL)));
+app.all('/api/payments/*', (req, res) => {
+  console.log(`[Gateway] ${req.method} /api/payments${req.path} → ${PAYMENT_SERVICE_URL}/api/payments${req.path}`);
+  paymentProxy.web(req, res);
+});
 
 // Root endpoint
 app.get('/', (req, res) => {
