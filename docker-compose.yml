@@ -22,9 +22,9 @@ services:
       dockerfile: Dockerfile
     container_name: feedo-api-gateway
     ports:
-      - "3001:3001"
+      - "5001:5001"
     environment:
-      - PORT=3001
+      - PORT=5001
       - USER_SERVICE_URL=http://user-service:5002
       - RESTAURANT_SERVICE_URL=http://restaurant-service:3002
       - ORDER_SERVICE_URL=http://order-service:3004
@@ -102,7 +102,7 @@ services:
     environment:
       - PORT=3004
       - MONGO_URI=mongodb://mongodb:27017/order_db
-      - USER_SERVICE_URL=http://user-service:3001
+      - USER_SERVICE_URL=http://user-service:5002
       - RESTAURANT_SERVICE_URL=http://restaurant-service:3002
       - DELIVERY_SERVICE_URL=http://delivery-service:3003
       - NOTIFICATION_SERVICE_URL=http://notification-service:3005
@@ -180,7 +180,7 @@ services:
       - PORT=3003
       - MONGODB_URI=mongodb://mongodb:27017/delivery_db
       - JWT_SECRET=${JWT_SECRET:-your_jwt_secret_here}
-      - USER_SERVICE_URL=http://user-service:3001
+      - USER_SERVICE_URL=http://user-service:5002
       - RESTAURANT_SERVICE_URL=http://restaurant-service:3002
       - ORDER_SERVICE_URL=http://order-service:3004
       - NOTIFICATION_SERVICE_URL=http://notification-service:3005
@@ -199,13 +199,13 @@ services:
       context: ./food-delivery-frontend
       dockerfile: Dockerfile
       args:
-        - REACT_APP_API_URL=${REACT_APP_API_URL:-http://localhost:3001}
+        - REACT_APP_API_URL=${REACT_APP_API_URL:-http://localhost:5001}
         - REACT_APP_STRIPE_PUBLISHABLE_KEY=${REACT_APP_STRIPE_PUBLISHABLE_KEY:-pk_test_51PBxgoJQfWfJF7dgk3uW4o89QhIwjXc8SHjqtJn1xJrc1SdcVkIYiqnBYUEnmOvLUyxXHC5KYyj0X5wvWH3nKvxq00YnnMU2aS}
     container_name: feedo-frontend
     ports:
       - "3000:80"
     environment:
-      - REACT_APP_API_URL=http://localhost:3001
+      - REACT_APP_API_URL=http://localhost:5001
     depends_on:
       - api-gateway
     networks:

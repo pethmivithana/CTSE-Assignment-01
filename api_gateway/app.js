@@ -14,7 +14,8 @@ app.use(cors());
 app.use(express.json());
 
 // Service URLs from environment variables
-const USER_SERVICE_URL = process.env.USER_SERVICE_URL || 'http://user-service:3001';
+// Local: http://localhost:PORT | Docker: http://service-name:PORT
+const USER_SERVICE_URL = process.env.USER_SERVICE_URL || 'http://user-service:5002';
 const RESTAURANT_SERVICE_URL = process.env.RESTAURANT_SERVICE_URL || 'http://restaurant-service:3002';
 const ORDER_SERVICE_URL = process.env.ORDER_SERVICE_URL || 'http://order-service:3004';
 const DELIVERY_SERVICE_URL = process.env.DELIVERY_SERVICE_URL || 'http://delivery-service:3003';

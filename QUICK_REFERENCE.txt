@@ -1,0 +1,254 @@
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                      PORT CONFIGURATION QUICK REFERENCE                    ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+LOCAL DEVELOPMENT PORTS (npm start)
+───────────────────────────────────────────────────────────────────────────
+
+┌─ Frontend
+│  Port: 3000
+│  URL: http://localhost:3000
+│  Env: food-delivery-frontend/.env
+│  API_URL: http://localhost:5001
+│
+├─ API Gateway ⭐ YOUR MAIN GATEWAY PORT
+│  Port: 5001 ← CHANGED FROM 3001
+│  URL: http://localhost:5001
+│  Env: api_gateway/.env
+│
+├─ User Service 
+│  Port: 5002 ← DEDICATED USER SERVICE PORT
+│  URL: http://localhost:5002
+│  Env: services/user-service/.env
+│
+├─ Restaurant Service
+│  Port: 3002 ← CHANGED FROM 5000
+│  URL: http://localhost:3002
+│  Env: services/restaurant-service/.env
+│
+├─ Order Service
+│  Port: 3004 ← CHANGED FROM 5003
+│  URL: http://localhost:3004
+│  Env: services/order-service/.env
+│
+├─ Delivery Service
+│  Port: 3003
+│  URL: http://localhost:3003
+│  Env: services/delivery-service/.env
+│
+├─ Notification Service
+│  Port: 3005
+│  URL: http://localhost:3005
+│  Env: services/notification-service/.env
+│
+├─ Payment Service
+│  Port: 3006
+│  URL: http://localhost:3006
+│  Env: services/payment-service/.env
+│
+└─ MongoDB
+   Port: 27017
+   URL: mongodb://localhost:27017
+
+
+DOCKER DEPLOYMENT PORTS (docker compose)
+───────────────────────────────────────────────────────────────────────────
+
+Services communicate using Docker DNS names internally:
+  api-gateway:5001
+  user-service:5002
+  restaurant-service:3002
+  order-service:3004
+  delivery-service:3003
+  notification-service:3005
+  payment-service:3006
+  mongodb:27017
+
+External access (from host machine):
+  Frontend: http://localhost:3000
+  Gateway:  http://localhost:5001 ← Access point for frontend
+  Others:   Internal only (not exposed)
+  MongoDB:  http://localhost:27017 (if needed locally)
+
+
+RUNNING SERVICES
+───────────────────────────────────────────────────────────────────────────
+
+LOCAL DEVELOPMENT (8 Terminals):
+
+Terminal 1: cd api_gateway && npm start
+            (Port 5001 - API Gateway)
+
+Terminal 2: cd services/user-service && npm start
+            (Port 5002 - User Service)
+
+Terminal 3: cd services/restaurant-service && npm start
+            (Port 3002 - Restaurant Service)
+
+Terminal 4: cd services/order-service && npm start
+            (Port 3004 - Order Service)
+
+Terminal 5: cd services/delivery-service && npm start
+            (Port 3003 - Delivery Service)
+
+Terminal 6: cd services/notification-service && npm start
+            (Port 3005 - Notification Service)
+
+Terminal 7: cd services/payment-service && npm start
+            (Port 3006 - Payment Service)
+
+Terminal 8: cd food-delivery-frontend && npm start
+            (Port 3000 - Frontend)
+
+DOCKER DEPLOYMENT (Single Command):
+
+$ docker compose up -d
+
+All services start in containers, accessible via:
+  Frontend: http://localhost:3000
+  Gateway:  http://localhost:5001
+
+
+QUICK TEST COMMANDS
+───────────────────────────────────────────────────────────────────────────
+
+Check API Gateway:
+  curl http://localhost:5001/health
+
+Check User Service:
+  curl http://localhost:5002
+
+Check All Services:
+  npm run health-check
+
+Test Registration:
+  1. Open http://localhost:3000
+  2. Click Sign Up
+  3. Enter email and password
+  4. Verify success
+
+Docker Logs:
+  docker compose logs -f api-gateway
+  docker compose logs -f user-service
+
+View Running Containers:
+  docker compose ps
+
+
+KEY ENVIRONMENT VARIABLES
+───────────────────────────────────────────────────────────────────────────
+
+FRONTEND (food-delivery-frontend/.env):
+  REACT_APP_API_URL=http://localhost:5001
+
+API GATEWAY (api_gateway/.env):
+  PORT=5001
+  USER_SERVICE_URL=http://localhost:5002
+  RESTAURANT_SERVICE_URL=http://localhost:3002
+  ORDER_SERVICE_URL=http://localhost:3004
+  DELIVERY_SERVICE_URL=http://localhost:3003
+  NOTIFICATION_SERVICE_URL=http://localhost:3005
+  PAYMENT_SERVICE_URL=http://localhost:3006
+
+USER SERVICE (services/user-service/.env):
+  PORT=5002
+  MONGO_URI=mongodb://localhost:27017/user_db
+
+OTHER SERVICES:
+  PORT=3002/3003/3004/3005/3006 (respective)
+  MONGO_URI/MONGODB_URI=mongodb://localhost:27017/{db_name}
+
+
+DOCKER COMPOSE VARIABLES
+───────────────────────────────────────────────────────────────────────────
+
+API Gateway:
+  environment:
+    - PORT=5001
+    - USER_SERVICE_URL=http://user-service:5002
+
+Order Service:
+  environment:
+    - PORT=3004
+    - USER_SERVICE_URL=http://user-service:5002
+    - RESTAURANT_SERVICE_URL=http://restaurant-service:3002
+
+Services use Docker DNS names, not localhost!
+
+
+FILES MODIFIED
+───────────────────────────────────────────────────────────────────────────
+
+✅ api_gateway/.env
+✅ api_gateway/app.js
+✅ services/restaurant-service/.env
+✅ services/order-service/.env
+✅ services/delivery-service/.env
+✅ food-delivery-frontend/.env
+✅ docker-compose.yml
+
+Already Correct (No Changes Needed):
+✅ services/user-service/.env
+✅ services/notification-service/.env
+✅ services/payment-service/.env
+
+
+TROUBLESHOOTING
+───────────────────────────────────────────────────────────────────────────
+
+Problem: "Cannot connect to User Service"
+Solution: 
+  • Check User Service port is 5002 (not 3001)
+  • Verify api_gateway/.env has USER_SERVICE_URL=http://localhost:5002
+  • Restart API Gateway
+
+Problem: "Frontend cannot reach API Gateway"
+Solution:
+  • Check API Gateway port is 5001 (not 3001)
+  • Verify frontend/.env has REACT_APP_API_URL=http://localhost:5001
+  • Restart Frontend
+
+Problem: "Services can't find each other in Docker"
+Solution:
+  • Verify docker-compose.yml uses service DNS names
+  • Check all services are on 'feedo-network'
+  • Restart Docker: docker compose down && docker compose up -d
+
+Problem: "Port already in use"
+Solution:
+  • Check: lsof -i :5001
+  • Kill: kill -9 <PID>
+  • Or change port in .env file
+
+
+REFERENCE DOCUMENTS
+───────────────────────────────────────────────────────────────────────────
+
+📄 PORT_CONFIGURATION.md (278 lines)
+   Complete reference with all configurations
+
+📄 MODIFICATIONS_CHECKLIST.md (228 lines)
+   Detailed checklist with test commands
+
+📄 ARCHITECTURE_PORTS.md (365 lines)
+   Visual diagrams and architecture explanation
+
+📄 PORT_UPDATE_SUMMARY.txt (242 lines)
+   Summary of all changes
+
+
+SUMMARY
+───────────────────────────────────────────────────────────────────────────
+
+✅ API Gateway moved from port 3001 → 5001
+✅ User Service confirmed on port 5002
+✅ All service ports aligned to your specification
+✅ Local and Docker configurations synchronized
+✅ All .env files updated
+✅ docker-compose.yml updated
+
+System is ready for local development and Docker deployment!
+
+Next: Follow PORT_CONFIGURATION.md or run: npm run health-check
+
+═══════════════════════════════════════════════════════════════════════════
