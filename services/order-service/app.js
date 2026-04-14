@@ -11,7 +11,7 @@ dotenv.config();
 const app = express();
 
 // Middlewares - CORS allow frontend (localhost:3000) and API gateway
-app.use(cors({ origin: ['http://localhost:3000', 'http://localhost:3001'], credentials: true }));
+app.use(cors({ origin: ['http://localhost:3000', 'http://localhost:5001'], credentials: true }));
 app.use(express.json());
 
 // MongoDB connection

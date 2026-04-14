@@ -14,5 +14,5 @@ docker compose up -d
 echo.
 echo ==^> Feedo is running!
 echo     Frontend:  http://localhost:3000
-echo     API:       http://localhost:3001
+echo     API:       http://localhost:5001
 echo.

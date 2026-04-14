@@ -26,9 +26,9 @@ Install MongoDB and ensure it runs on port 27017.
 
 | Service            | Port | Database           |
 |--------------------|------|--------------------|
-| API Gateway        | 3001 | -                  |
+| API Gateway        | 5001 | -                  |
 | Frontend           | 3000 | -                  |
-| User Service       | 5002 | user_management    |
+| User Service       | 3001 | user_management    |
 | Restaurant Service | 3002 | restaurant_db      |
 | Order Service      | 3004 | order_management   |
 | Delivery Service   | 3003 | delivery_management|

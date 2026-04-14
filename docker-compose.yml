@@ -22,9 +22,9 @@ services:
       dockerfile: Dockerfile
     container_name: feedo-api-gateway
     ports:
-      - "3001:3001"
+      - "5001:5001"
     environment:
-      - PORT=3001
+      - PORT=5001
       - USER_SERVICE_URL=http://user-service:3001
       - RESTAURANT_SERVICE_URL=http://restaurant-service:3002
       - ORDER_SERVICE_URL=http://order-service:3004
@@ -199,13 +199,14 @@ services:
       context: ./food-delivery-frontend
       dockerfile: Dockerfile
       args:
-        - REACT_APP_API_URL=${REACT_APP_API_URL:-http://localhost:3001}
+        - REACT_APP_API_URL=${REACT_APP_API_URL:-http://localhost:3000}
         - REACT_APP_STRIPE_PUBLISHABLE_KEY=${REACT_APP_STRIPE_PUBLISHABLE_KEY:-pk_test_51PBxgoJQfWfJF7dgk3uW4o89QhIwjXc8SHjqtJn1xJrc1SdcVkIYiqnBYUEnmOvLUyxXHC5KYyj0X5wvWH3nKvxq00YnnMU2aS}
     container_name: feedo-frontend
     ports:
       - "3000:80"
     environment:
-      - REACT_APP_API_URL=http://localhost:3001
+      - REACT_APP_API_URL=http://localhost:3000
+      - REACT_APP_STRIPE_PUBLISHABLE_KEY=${REACT_APP_STRIPE_PUBLISHABLE_KEY:-pk_test_51PBxgoJQfWfJF7dgk3uW4o89QhIwjXc8SHjqtJn1xJrc1SdcVkIYiqnBYUEnmOvLUyxXHC5KYyj0X5wvWH3nKvxq00YnnMU2aS}
     depends_on:
       - api-gateway
     networks:
