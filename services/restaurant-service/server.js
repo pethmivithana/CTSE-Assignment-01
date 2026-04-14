@@ -15,9 +15,9 @@ if (!fs.existsSync(uploadsDir)) {
   console.log('Created uploads directory');
 }
 
-// CORS configuration - allow frontend (localhost:3000) and API gateway (localhost:3001)
+// CORS configuration - allow frontend (localhost:3000) and API gateway (localhost:5001)
 const corsOptions = {
-  origin: ['http://localhost:3000', 'http://localhost:3001'],
+  origin: ['http://localhost:3000', 'http://localhost:5001'],
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control', 'Expires', 'Pragma'],
 };

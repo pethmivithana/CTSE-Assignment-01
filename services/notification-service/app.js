@@ -8,7 +8,7 @@ const { sendHtmlEmail } = require('./services/emailService');
 const app = express();
 const PORT = process.env.PORT || 3005;
 
-app.use(cors({ origin: ['http://localhost:3000', 'http://localhost:3001'], credentials: true }));
+app.use(cors({ origin: ['http://localhost:3000', 'http://localhost:5001'], credentials: true }));
 app.use(express.json({ limit: '1mb' }));
 
 app.use('/api/notifications', routes);

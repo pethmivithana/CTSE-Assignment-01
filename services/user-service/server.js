@@ -9,8 +9,8 @@ dotenv.config();
 
 const app = express();
 
-// Middlewares
-app.use(cors());
+// Middlewares - CORS allow frontend (localhost:3000) and API gateway (localhost:5001)
+app.use(cors({ origin: ['http://localhost:3000', 'http://localhost:5001'], credentials: true }));
 app.use(express.json());
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
