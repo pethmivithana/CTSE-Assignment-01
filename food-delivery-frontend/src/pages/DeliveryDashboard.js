@@ -49,7 +49,7 @@ const DeliveryDashboard = () => {
     } else if (user && user.role !== 'deliveryPerson') {
       navigate('/');
     }
-  }, [user, navigate]);
+  }, [user, navigate, loadData]);
 
   /** Share live location while on an active delivery */
   useEffect(() => {

@@ -50,7 +50,7 @@ const RestaurantPage = () => {
 
   useEffect(() => {
     fetchRestaurants();
-  }, [filters.cuisine, filters.city, filters.openNow, filters.sort, filters.search]);
+  }, [filters.cuisine, filters.city, filters.openNow, filters.sort, filters.search, fetchRestaurants]);
 
   useEffect(() => {
     const q = state?.searchQuery?.toLowerCase();

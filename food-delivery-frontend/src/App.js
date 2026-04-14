@@ -15,7 +15,6 @@ import CheckoutCompletePage from './pages/CheckoutCompletePage';
 import OrdersPage from './pages/OrdersPage';
 import OrderTrackPage from './pages/OrderTrackPage';
 import PaymentsHistoryPage from './pages/PaymentsHistoryPage';
-import PayPalReturnPage from './pages/PayPalReturnPage';
 import ProfilePage from './pages/ProfilePage';
 import NotificationsPage from './pages/NotificationsPage';
 import EditProfilePage from './pages/EditProfilePage';
