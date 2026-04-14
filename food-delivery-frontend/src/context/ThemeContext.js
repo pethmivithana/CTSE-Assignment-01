@@ -46,7 +46,7 @@ export const ThemeProvider = ({ children }) => {
     if (savedTheme && themes[savedTheme]) {
       setTheme(savedTheme);
     }
-  }, []);
+  }, [themes]);
 
   return (
     <ThemeContext.Provider value={{ currentTheme: themes[theme], theme, toggleTheme, themes }}>
