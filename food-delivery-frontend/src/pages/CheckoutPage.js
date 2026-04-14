@@ -573,7 +573,7 @@ const CheckoutPage = () => {
   const [clientSecret, setClientSecret] = useState('');
   const [paymentIntentError, setPaymentIntentError] = useState('');
   const [deliveryFee, setDeliveryFee] = useState(150);
-
+  const [walletBalance, setWalletBalance] = useState(null);
 
   useEffect(() => {
     if (!restaurant || (!street && (!addresses.length || !selectedAddressId))) {
