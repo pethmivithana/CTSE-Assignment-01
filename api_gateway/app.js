@@ -22,11 +22,29 @@ const NOTIFICATION_SERVICE_URL = process.env.NOTIFICATION_SERVICE_URL || 'http:/
 const PAYMENT_SERVICE_URL = process.env.PAYMENT_SERVICE_URL || 'http://localhost:3006';
 const JWT_SECRET = process.env.JWT_SECRET || 'jasonwebtoken';
 
-app.use(cors({
-  origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+// CORS configuration - allow both local and Azure deployments
+const corsOptions = {
+  origin: (origin, callback) => {
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://127.0.0.1:3000',
+      'https://feedo-frontend.lemonriver-0aacffa9.centralindia.azurecontainerapps.io',
+      /\.azurecontainerapps\.io$/  // Allow all Azure Container Apps domains
+    ];
+    
+    if (!origin || allowedOrigins.some(allowed => 
+      typeof allowed === 'string' ? origin === allowed : allowed.test(origin)
+    )) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   exposedHeaders: ['x-user-id', 'x-user-role']
-}));
+};
+
+app.use(cors(corsOptions));
 
 // Authentication middleware for the gateway
 const authenticate = (req, res, next) => {
@@ -351,6 +369,21 @@ app.use('/api/delivery', proxyToDeliveryService);
 // Notification Service - internal/callback (services call directly; gateway can proxy if needed)
 app.use('/api/notifications', (req, res) => {
   proxy.web(req, res, { target: NOTIFICATION_SERVICE_URL });
+});
+
+// Root endpoint - redirects to health or status
+app.get('/', (req, res) => {
+  res.status(200).json({ 
+    message: 'Feedo API Gateway',
+    status: 'running',
+    endpoints: {
+      health: '/health',
+      auth: '/auth',
+      restaurants: '/api/restaurants',
+      orders: '/api/orders',
+      delivery: '/api/delivery'
+    }
+  });
 });
 
 // Health check endpoint
