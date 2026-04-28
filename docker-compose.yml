@@ -58,6 +58,8 @@ services:
       - JWT_SECRET=${JWT_SECRET:-your_jwt_secret_here}
       - ORDER_SERVICE_URL=http://order-service:3004
       - RESTAURANT_SERVICE_URL=http://restaurant-service:3002
+      - DELIVERY_SERVICE_URL=http://delivery-service:3003
+      - API_GATEWAY_URL=http://api-gateway:3001
       - SMTP_HOST=${SMTP_HOST:-smtp.gmail.com}
       - SMTP_PORT=${SMTP_PORT:-587}
       - SMTP_SECURE=${SMTP_SECURE:-false}

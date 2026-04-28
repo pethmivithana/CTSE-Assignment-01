@@ -323,7 +323,9 @@ exports.acceptDelivery = async (req, res) => {
       return res.status(404).json({ error: 'Driver not found' });
     }
 
-    await deliveryService.assignDriverToDelivery(deliveryId, driverId, `Assigned to driver: ${driver.name}`);
+    await deliveryService.assignDriverToDelivery(deliveryId, driverId, `Assigned to driver: ${driver.name}`, {
+      bypassAvailabilityCheck: true,
+    });
 
     const delivery = await Delivery.findById(deliveryId);
 
@@ -365,6 +367,22 @@ exports.rejectDelivery = async (req, res) => {
     if (!delivery) {
       return res.status(404).json({ error: 'Delivery not found' });
     }
+
+    if (delivery.status !== 'CONFIRMED' || delivery.driverId) {
+      return res.status(400).json({
+        error: `Delivery can only be rejected while waiting for acceptance (current: ${delivery.status})`,
+      });
+    }
+
+    const alreadyRejected = (delivery.rejectedBy || []).some(
+      (entry) => String(entry.driverId) === String(driverId),
+    );
+    if (alreadyRejected) {
+      return res.status(200).json({
+        message: 'Delivery already rejected by this driver',
+        deliveryId: delivery._id,
+      });
+    }
     
     // Add driver to rejected list
     delivery.rejectedBy.push({
@@ -378,7 +396,7 @@ exports.rejectDelivery = async (req, res) => {
     
     logger.info(`Driver ${driverId} rejected delivery ${deliveryId}`);
     
-    deliveryService.assignDeliveryToDriver(delivery._id);
+    await deliveryService.assignDeliveryToDriver(delivery._id);
     
     return res.status(200).json({
       message: 'Delivery rejected successfully',

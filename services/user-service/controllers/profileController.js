@@ -326,9 +326,10 @@ exports.setDefaultAddress = async (req, res) => {
  */
 exports.updateProfilePicture = async (req, res) => {
   try {
-    const baseUrl = process.env.APP_URL || `http://localhost:${process.env.PORT || 5002}`;
+    // Store path served by API Gateway: GET /api/user-uploads/:file → user-service /uploads/:file
+    // (Do not use APP_URL/3000 — the React app does not host /uploads.)
     const url = req.file
-      ? `${baseUrl}/uploads/${req.file.filename}`
+      ? `/api/user-uploads/${req.file.filename}`
       : req.body?.profilePictureUrl;
     if (!url) {
       return res.status(400).json({ status: false, message: "Profile picture URL or file required" });

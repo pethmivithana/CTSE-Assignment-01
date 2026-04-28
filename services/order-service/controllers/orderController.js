@@ -250,20 +250,28 @@ exports.updateOrderStatus = async (req, res) => {
 
     if (status === 'CONFIRMED') {
       try {
-        const delivery = await deliveryService.requestDriverAssignment(updatedOrder);
-        if (delivery?.delivery?.id) {
-          updatedOrder.deliveryId = delivery.delivery.id;
-          await updatedOrder.save();
-        }
-      } catch (err) {
-        console.warn('Failed to request delivery:', err.message);
-      }
-      try {
         const userClient = require('../services/userClient');
         const customer = await userClient.getCustomerForNotification(updatedOrder.customerId?.toString());
         await notificationService.notifyOrderAccepted(updatedOrder, customer);
       } catch (notifyErr) {
         console.warn('Failed to notify order accepted:', notifyErr.message);
+      }
+    }
+
+    // Real-world flow: only start rider assignment once restaurant marks order READY.
+    if (status === 'READY') {
+      try {
+        if (!updatedOrder.deliveryId) {
+          const delivery = await deliveryService.requestDriverAssignment(updatedOrder);
+          if (delivery?.delivery?.id) {
+            updatedOrder.deliveryId = delivery.delivery.id;
+            await updatedOrder.save();
+          }
+        } else {
+          await deliveryService.dispatchExistingDelivery(updatedOrder._id.toString());
+        }
+      } catch (err) {
+        console.warn('Failed to dispatch delivery on READY:', err.message);
       }
     }
 

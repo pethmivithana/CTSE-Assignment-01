@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import LoginSignup from '../components/LoginForm';
+import { resolveProfilePictureUrl } from '../utils/resolveMediaUrl';
 
 const ProfilePage = () => {
   const { user, logout } = useAuth();
@@ -53,7 +54,7 @@ const ProfilePage = () => {
           <div className="flex flex-col sm:flex-row items-center gap-6">
             <div className="w-20 h-20 rounded-2xl overflow-hidden flex-shrink-0 bg-primary-100 text-primary-600 flex items-center justify-center text-2xl font-display font-bold">
               {user.profilePicture ? (
-                <img src={user.profilePicture} alt="" className="w-full h-full object-cover" />
+                <img src={resolveProfilePictureUrl(user.profilePicture)} alt="" className="w-full h-full object-cover" />
               ) : (
                 user.fullName?.charAt(0) || user.name?.charAt(0) || '?'
               )}

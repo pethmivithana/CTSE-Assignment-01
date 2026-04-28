@@ -8,6 +8,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+  const USER_CACHE_KEY = 'foodAppUser';
 
   useEffect(() => {
     const verifyToken = async () => {
@@ -18,6 +19,15 @@ export const AuthProvider = ({ children }) => {
           return;
         }
 
+        const cachedUserRaw = localStorage.getItem(USER_CACHE_KEY);
+        if (cachedUserRaw) {
+          try {
+            setUser(JSON.parse(cachedUserRaw));
+          } catch (_) {
+            localStorage.removeItem(USER_CACHE_KEY);
+          }
+        }
+
         const response = await fetch(`${API_URL}/auth/profile`, {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -25,15 +35,23 @@ export const AuthProvider = ({ children }) => {
         });
 
         if (!response.ok) {
+          // Only clear auth for real auth failures.
+          // Avoid forcing logout on transient gateway/network errors.
+          if (response.status === 401 || response.status === 403) {
+            localStorage.removeItem('foodAppToken');
+            localStorage.removeItem('foodAppRefreshToken');
+            localStorage.removeItem(USER_CACHE_KEY);
+            setUser(null);
+          }
           throw new Error('Token verification failed');
         }
 
         const data = await response.json();
         setUser(data.user);
+        localStorage.setItem(USER_CACHE_KEY, JSON.stringify(data.user));
       } catch (error) {
         console.error('Token verification failed:', error);
-        localStorage.removeItem('foodAppToken');
-        setUser(null);
+        // Keep existing token/user cache on non-auth errors to prevent refresh logouts.
       } finally {
         setLoading(false);
       }
@@ -57,6 +75,8 @@ export const AuthProvider = ({ children }) => {
       }
 
       localStorage.setItem('foodAppToken', data.token);
+      if (data.refreshToken) localStorage.setItem('foodAppRefreshToken', data.refreshToken);
+      if (data.user) localStorage.setItem(USER_CACHE_KEY, JSON.stringify(data.user));
       setUser(data.user);
       return { success: true };
     } catch (error) {
@@ -82,6 +102,7 @@ export const AuthProvider = ({ children }) => {
     } catch (e) { /* ignore */ }
     localStorage.removeItem('foodAppToken');
     localStorage.removeItem('foodAppRefreshToken');
+    localStorage.removeItem(USER_CACHE_KEY);
     setUser(null);
     window.location.href = '/';
   };
@@ -92,6 +113,7 @@ export const AuthProvider = ({ children }) => {
 
   const setUserFromOAuth = (userData) => {
     setUser(userData);
+    if (userData) localStorage.setItem(USER_CACHE_KEY, JSON.stringify(userData));
   };
 
   const register = async (
@@ -171,6 +193,8 @@ export const AuthProvider = ({ children }) => {
       // For customers, we can log them in immediately
       if (data.token) {
         localStorage.setItem('foodAppToken', data.token);
+        if (data.refreshToken) localStorage.setItem('foodAppRefreshToken', data.refreshToken);
+        if (data.user) localStorage.setItem(USER_CACHE_KEY, JSON.stringify(data.user));
         setUser(data.user);
       }
   

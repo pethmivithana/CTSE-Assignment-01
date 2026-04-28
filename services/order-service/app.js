@@ -4,6 +4,8 @@ const express = require("express");
 const mongoose = require("mongoose");
 const dotenv = require("dotenv");
 const cors = require("cors");
+const Order = require("./models/Order");
+const deliveryService = require("./services/deliveryService");
 
 // Load environment variables
 dotenv.config();
@@ -22,6 +24,39 @@ mongoose.connect(process.env.MONGO_URI)
 // Routes
 app.use("/api/orders", require("./routes/orderRoutes"));
 app.use("/api/coupons", require("./routes/couponRoutes"));
+
+// Recovery loop: ensure READY orders always have a delivery created/linked.
+// This covers temporary downstream failures without requiring manual status toggles.
+let isRecoveryRunning = false;
+setInterval(async () => {
+    if (isRecoveryRunning) return;
+    if (mongoose.connection.readyState !== 1) return;
+    isRecoveryRunning = true;
+    try {
+        const stuckReadyOrders = await Order.find({
+            status: "READY",
+            $or: [{ deliveryId: null }, { deliveryId: { $exists: false } }],
+        })
+            .sort({ createdAt: 1 })
+            .limit(10);
+
+        for (const order of stuckReadyOrders) {
+            try {
+                const delivery = await deliveryService.requestDriverAssignment(order);
+                if (delivery?.delivery?.id) {
+                    order.deliveryId = delivery.delivery.id;
+                    await order.save();
+                }
+            } catch (err) {
+                console.warn("READY recovery dispatch failed:", err.message);
+            }
+        }
+    } catch (err) {
+        console.warn("READY recovery loop failed:", err.message);
+    } finally {
+        isRecoveryRunning = false;
+    }
+}, 30000);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

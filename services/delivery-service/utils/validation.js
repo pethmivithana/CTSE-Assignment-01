@@ -27,7 +27,8 @@ exports.validateDeliveryData = (data) => {
       latitude: Joi.number().required(),
       longitude: Joi.number().required()
     }).required(),
-    deliveryNotes: Joi.string()
+    deliveryNotes: Joi.string().allow(''),
+    deliveryFee: Joi.number().min(0)
   });
   
   return schema.validate(data);

@@ -3,14 +3,27 @@ const MenuItem = require('../models/MenuItem');
 
 exports.createMenuItem = async (req, res) => {
   try {
-    const { restaurantId, restaurantName, foodName, category, categoryId, prices, price, isAvailable, isOutOfStock, isVeg } = req.body;
+    const {
+      restaurantId,
+      restaurantName,
+      foodName,
+      description,
+      category,
+      categoryId,
+      prices,
+      price,
+      isAvailable,
+      isOutOfStock,
+      isVeg,
+      stockQuantity,
+    } = req.body;
     const imageUrl = req.file ? req.file.filename : '';
 
     const itemData = {
       restaurantId: restaurantId && mongoose.Types.ObjectId.isValid(restaurantId) ? new mongoose.Types.ObjectId(restaurantId) : restaurantId,
       restaurantName,
       foodName,
-      description: description || '',
+      description: description != null ? String(description) : '',
       category,
       imageUrl,
       isAvailable: isAvailable !== false,
@@ -18,7 +31,13 @@ exports.createMenuItem = async (req, res) => {
       isVeg: isVeg !== false
     };
     if (categoryId && mongoose.Types.ObjectId.isValid(categoryId)) itemData.categoryId = new mongoose.Types.ObjectId(categoryId);
-    if (prices) itemData.prices = typeof prices === 'string' ? JSON.parse(prices) : prices;
+    if (prices) {
+      try {
+        itemData.prices = typeof prices === 'string' ? JSON.parse(prices) : prices;
+      } catch (e) {
+        return res.status(400).json({ error: 'Invalid prices JSON' });
+      }
+    }
     if (price !== undefined) itemData.price = Number(price);
     if (stockQuantity !== undefined && stockQuantity !== '' && stockQuantity !== null) itemData.stockQuantity = Number(stockQuantity);
 

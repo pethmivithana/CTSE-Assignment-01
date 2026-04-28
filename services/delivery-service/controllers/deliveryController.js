@@ -167,6 +167,40 @@ exports.getDeliveryByOrderId = async (req, res) => {
     }
 };
 
+// Trigger/refresh dispatch for an existing order delivery (used when order becomes READY)
+exports.dispatchDeliveryByOrderId = async (req, res) => {
+    try {
+        const { orderId } = req.params;
+        const delivery = await Delivery.findOne({ orderId });
+        if (!delivery) {
+            return res.status(404).json({ error: 'Delivery not found' });
+        }
+
+        if (delivery.status !== 'CONFIRMED') {
+            return res.status(400).json({
+                error: `Delivery dispatch allowed only in CONFIRMED state (current: ${delivery.status})`
+            });
+        }
+
+        if (delivery.driverId) {
+            return res.status(200).json({
+                message: 'Delivery already assigned',
+                delivery: { id: delivery._id, status: delivery.status, driverId: delivery.driverId }
+            });
+        }
+
+        const assigned = await deliveryService.assignDeliveryToDriver(delivery._id);
+        return res.status(200).json({
+            message: assigned ? 'Dispatch attempted successfully' : 'Dispatch attempted, no driver currently available',
+            assigned,
+            delivery: { id: delivery._id, status: delivery.status }
+        });
+    } catch (err) {
+        logger.error(`Error dispatching delivery for order ${req.params.orderId}: ${err.message}`);
+        return res.status(500).json({ error: 'Failed to dispatch delivery' });
+    }
+};
+
 // Track delivery status and driver location
 exports.trackDelivery = async (req, res) => {
     try {
@@ -468,7 +502,7 @@ exports.getAvailableDeliveries = async (req, res) => {
     try {
         const deliveries = await Delivery.find({
             status: 'CONFIRMED',
-            driverId: { $in: [null, undefined] }
+            driverId: null,
         })
             .sort({ createdAt: -1 })
             .limit(50)

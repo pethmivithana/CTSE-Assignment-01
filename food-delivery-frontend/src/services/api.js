@@ -53,7 +53,11 @@ export const api = {
         ...getAuthHeaders(),
         ...(opts.idempotencyKey && { 'Idempotency-Key': String(opts.idempotencyKey).slice(0, 255) }),
       },
-      body: JSON.stringify(paymentData),
+      // Also send idempotency in body so payment-service works if a proxy drops the header
+      body: JSON.stringify({
+        ...paymentData,
+        ...(opts.idempotencyKey && { idempotencyKey: String(opts.idempotencyKey).slice(0, 255) }),
+      }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
@@ -427,8 +431,9 @@ export const api = {
       headers: getAuthHeaders(),
       body: JSON.stringify({ deliveryId }),
     });
-    if (!res.ok) throw new Error('Failed to accept delivery');
-    return res.json();
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || data.message || 'Failed to accept delivery');
+    return data;
   },
   /** @param statusOrPayload string status or { status, note?, deliveryOtp?, photoBase64? } */
   updateDeliveryStatus: async (driverId, deliveryId, statusOrPayload) => {

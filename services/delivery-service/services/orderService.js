@@ -4,10 +4,14 @@ const ORDER_SERVICE_URL = process.env.ORDER_SERVICE_URL || 'http://localhost:300
 
 exports.updateOrderStatus = async (orderId, status) => {
   try {
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(process.env.INTERNAL_API_KEY ? { 'x-internal-key': process.env.INTERNAL_API_KEY } : {}),
+    };
     const response = await axios.patch(
       `${ORDER_SERVICE_URL}/api/orders/${orderId}/status-update`,
       { status },
-      { headers: { 'Content-Type': 'application/json' }, timeout: 5000 }
+      { headers, timeout: 5000 }
     );
     return response.data;
   } catch (err) {

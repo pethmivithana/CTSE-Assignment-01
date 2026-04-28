@@ -28,8 +28,10 @@ async function enrichDeliveryRoute(delivery) {
 
 /**
  * Core assignment — used by accept + auto-assign + admin
+ * @param {{ bypassAvailabilityCheck?: boolean }} [options] - When true (manual accept / admin), skip "Go Online" requirement; still block if driver has an active delivery.
  */
-exports.assignDriverToDelivery = async (deliveryId, driverId, note = 'Driver assigned') => {
+exports.assignDriverToDelivery = async (deliveryId, driverId, note = 'Driver assigned', options = {}) => {
+  const { bypassAvailabilityCheck = false } = options;
   const delivery = await Delivery.findById(deliveryId);
   const driver = await Driver.findById(driverId);
   if (!delivery || !driver) {
@@ -44,8 +46,15 @@ exports.assignDriverToDelivery = async (deliveryId, driverId, note = 'Driver ass
   if (!driver.isVerified) {
     throw new Error('Driver not verified');
   }
-  if (!driver.isAvailable || driver.status !== 'AVAILABLE') {
-    throw new Error('Driver not available');
+  if (!bypassAvailabilityCheck) {
+    if (!driver.isAvailable || driver.status !== 'AVAILABLE') {
+      throw new Error('Driver not available');
+    }
+  } else if (driver.currentDelivery) {
+    const other = await Delivery.findById(driver.currentDelivery);
+    if (other && ['DRIVER_ASSIGNED', 'PICKED_UP', 'ON_THE_WAY'].includes(other.status)) {
+      throw new Error('Finish your current delivery before accepting another');
+    }
   }
 
   await enrichDeliveryRoute(delivery);
@@ -107,7 +116,7 @@ exports.adminAssignDriver = async (deliveryId, newDriverId, note = 'Assigned by 
     throw new Error(`Unexpected delivery state ${delivery.status}`);
   }
 
-  await exports.assignDriverToDelivery(deliveryId, newDriverId, note);
+  await exports.assignDriverToDelivery(deliveryId, newDriverId, note, { bypassAvailabilityCheck: true });
   return Delivery.findById(deliveryId).populate('driverId', 'name phone vehicleDetails');
 };
 

@@ -9,6 +9,7 @@ const {
   customerMiddleware, 
   restaurantManagerMiddleware,
 } = require('../middleware/authMiddleware');
+const { requireInternalKey } = require('../middleware/internalAuth');
 
 // Payment webhook - called by payment provider (no auth)
 router.post('/payment/webhook', orderController.paymentWebhook);
@@ -17,7 +18,7 @@ router.post('/payment/webhook', orderController.paymentWebhook);
 router.post('/validate-coupon', authMiddleware, customerMiddleware, orderController.validateCoupon);
 
 // Internal: status update from delivery service (no auth - consider adding service-to-service auth)
-router.patch('/:id/status-update', orderController.updateOrderStatusInternal);
+router.patch('/:id/status-update', requireInternalKey, orderController.updateOrderStatusInternal);
 
 // Order tracking - public (track by order ID)
 router.get('/track/:id', orderController.trackOrder);

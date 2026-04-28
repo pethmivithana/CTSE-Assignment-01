@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
+import { resolveProfilePictureUrl } from '../utils/resolveMediaUrl';
 
 const EditProfilePage = () => {
   const { user, logout, changePassword, setUserFromOAuth } = useAuth();
@@ -24,7 +25,7 @@ const EditProfilePage = () => {
         email: user.email || '',
         contactNumber: user.contactNumber || '',
       });
-      setProfilePicturePreview(user.profilePicture || null);
+      setProfilePicturePreview(user.profilePicture ? resolveProfilePictureUrl(user.profilePicture) : null);
     }
   }, [user]);
 

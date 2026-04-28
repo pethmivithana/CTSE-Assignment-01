@@ -7,6 +7,7 @@ const deliveryController = require('../controllers/deliveryController');
 const mapController = require('../controllers/mapController');
 const analyticsController = require('../controllers/analyticsController');
 const deliveryHistoryController = require('../controllers/deliveryHistoryController');
+const { requireInternalKey } = require('../middleware/internalAuth');
 
 const router = express.Router();
 
@@ -28,13 +29,13 @@ router.get('/track/:orderId', deliveryController.trackDelivery);
 router.post('/drivers/register', validateRequest, driverController.registerDriver);//ok
 
 // Driver routes (driver authorization required)
-router.get('/drivers/:id', /*authorizeDriver*/ driverController.getDriverProfile);//ok
-router.put('/drivers/:id/availability', /*authorizeDriver*/ validateRequest, driverController.updateAvailability);//ok
-router.put('/drivers/:id/location', /*authorizeDriver*/ validateRequest, driverController.updateLocation);//ok
-router.get('/drivers/:id/deliveries', authorizeDriver, driverController.getDriverDeliveries);
-router.post('/drivers/:id/accept', /*authorizeDriver*/ validateRequest, driverController.acceptDelivery);//ok
-router.post('/drivers/:id/reject', authorizeDriver, validateRequest, driverController.rejectDelivery);
-router.put('/drivers/:id/deliveries/:deliveryId/status', authorizeDriver, validateRequest, driverController.updateDeliveryStatus);
+router.get('/drivers/:id', authenticateToken, authorizeDriver, driverController.getDriverProfile);//ok
+router.put('/drivers/:id/availability', authenticateToken, authorizeDriver, validateRequest, driverController.updateAvailability);//ok
+router.put('/drivers/:id/location', authenticateToken, authorizeDriver, validateRequest, driverController.updateLocation);//ok
+router.get('/drivers/:id/deliveries', authenticateToken, authorizeDriver, driverController.getDriverDeliveries);
+router.post('/drivers/:id/accept', authenticateToken, authorizeDriver, validateRequest, driverController.acceptDelivery);//ok
+router.post('/drivers/:id/reject', authenticateToken, authorizeDriver, validateRequest, driverController.rejectDelivery);
+router.put('/drivers/:id/deliveries/:deliveryId/status', authenticateToken, authorizeDriver, validateRequest, driverController.updateDeliveryStatus);
 
 // Map related routes
 router.get('/map/directions', mapController.getDirections);
@@ -42,8 +43,9 @@ router.get('/map/directions', mapController.getDirections);
 // Delivery routes - specific paths MUST come before /deliveries/:id
 router.post('/deliveries/calculate-fee', deliveryController.calculateDeliveryFee);
 router.post('/deliveries/order/:orderId/exception', authenticateToken, deliveryController.reportDeliveryException);
-router.post('/deliveries', validateRequest, deliveryController.createDelivery);//ok
+router.post('/deliveries', requireInternalKey, validateRequest, deliveryController.createDelivery);//ok
 router.put('/deliveries/confirm/:orderId', validateRequest, deliveryController.confirmDelivery);
+router.post('/deliveries/order/:orderId/dispatch', requireInternalKey, validateRequest, deliveryController.dispatchDeliveryByOrderId);
 router.get('/deliveries/order/:orderId', deliveryController.getDeliveryByOrderId);
 router.get('/deliveries/history', authenticateToken, deliveryHistoryController.getCustomerHistory);
 router.get('/deliveries/:id', deliveryController.getDeliveryById);

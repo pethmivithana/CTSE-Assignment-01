@@ -10,6 +10,23 @@ const typeAccent = (type) => {
   return 'from-slate-50 to-gray-50 border-gray-200 text-slate-800';
 };
 
+const shortOrderId = (value) => {
+  const id = String(value || '').trim();
+  if (!id) return '';
+  return id.slice(-6).toUpperCase();
+};
+
+const notificationOrderId = (n) =>
+  n?.data?.orderId || n?.orderId || '';
+
+const renderNotificationBody = (n) => {
+  const body = String(n?.body || '');
+  const orderId = String(notificationOrderId(n) || '');
+  const short = shortOrderId(orderId);
+  if (!body || !orderId || !short) return body;
+  return body.split(orderId).join(`#${short}`);
+};
+
 export default function NotificationsPage() {
   const { user, loading: authLoading } = useAuth();
   const [tab, setTab] = useState('all');
@@ -174,7 +191,16 @@ export default function NotificationsPage() {
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">{n.type}</p>
                       <h2 className="font-semibold text-lg text-gray-900">{n.title}</h2>
-                      {n.body && <p className="text-sm text-gray-600 mt-2 leading-relaxed">{n.body}</p>}
+                      {shortOrderId(notificationOrderId(n)) && (
+                        <p className="text-sm text-gray-700 mt-2 font-medium">
+                          Order #{shortOrderId(notificationOrderId(n))}
+                        </p>
+                      )}
+                      {n.body && (
+                        <p className="text-sm text-gray-600 mt-2 leading-relaxed">
+                          {renderNotificationBody(n)}
+                        </p>
+                      )}
                       <p className="text-xs text-gray-400 mt-3">
                         {new Date(n.createdAt).toLocaleString()}
                       </p>

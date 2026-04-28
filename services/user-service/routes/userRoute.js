@@ -27,10 +27,13 @@ async function registerDriverWithDeliveryService(user) {
   const driverUrls = [`${DELIVERY_SERVICE_URL}/api/delivery/drivers/register`, `${API_GATEWAY_URL}/api/delivery/drivers/register`];
   for (const url of driverUrls) {
     try {
-      await axios.post(url, driverPayload, { headers: { "Content-Type": "application/json" }, timeout: 5000 });
+      await axios.post(url, driverPayload, { headers: { "Content-Type": "application/json" }, timeout: 8000 });
       return true;
     } catch (drvErr) {
-      console.warn(`Driver registration failed (${url}):`, drvErr.message);
+      const status = drvErr.response?.status;
+      // Driver already registered in delivery DB — treat as success
+      if (status === 409) return true;
+      console.warn(`Driver registration failed (${url}):`, drvErr.message, status ? `HTTP ${status}` : "");
     }
   }
   return false;

@@ -40,6 +40,11 @@ const OrdersPage = () => {
       navigate('/profile');
       return;
     }
+    // /api/orders/me is customer-only — drivers get 403 here
+    if (user.role === 'deliveryPerson') {
+      navigate('/delivery/dashboard');
+      return;
+    }
     const fetchOrders = async () => {
       try {
         setLoading(true);

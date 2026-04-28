@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
+import { resolveProfilePictureUrl } from '../utils/resolveMediaUrl';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
 
@@ -116,7 +117,7 @@ const Navbar = () => {
                     {avatarUrl ? (
                       <img src={avatarUrl} alt={restaurant?.name} className="w-full h-full object-cover" onError={() => setAvatarError(true)} />
                     ) : user.profilePicture ? (
-                      <img src={user.profilePicture} alt="" className="w-full h-full object-cover" />
+                      <img src={resolveProfilePictureUrl(user.profilePicture)} alt="" className="w-full h-full object-cover" />
                     ) : (
                       <span>{user.fullName?.charAt(0) || user.name?.charAt(0) || '?'}</span>
                     )}

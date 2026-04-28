@@ -29,7 +29,9 @@ exports.createIntent = async (req, res) => {
   }
   try {
     const { customerId, amount, currency, orderRef, metadata, orderId } = req.body;
-    const idempotencyKey = req.headers['idempotency-key'] || req.body.idempotencyKey;
+    // Express lowercases headers; must read idempotency key or Stripe gets a second `{}` which stripe-node rejects
+    const idempotencyKey =
+      req.headers['idempotency-key'] || req.headers['Idempotency-Key'] || req.body.idempotencyKey;
     if (!customerId || amount == null || amount <= 0) {
       return res.status(400).json({ success: false, message: 'customerId and amount (positive) are required' });
     }
@@ -59,23 +61,32 @@ exports.createIntent = async (req, res) => {
     }
 
     const amountCents = Math.round(Number(amount) * 100);
+    // Stripe metadata values must be strings (no nested objects)
     const meta = {
       customerId: String(customerId),
-      orderRef: orderRef || '',
-      ...(metadata || {}),
+      orderRef: orderRef != null ? String(orderRef) : '',
       ...(orderId ? { orderId: String(orderId) } : {}),
     };
+    if (metadata && typeof metadata === 'object') {
+      for (const [k, v] of Object.entries(metadata)) {
+        if (v == null) continue;
+        meta[k] = typeof v === 'object' && v.toString ? v.toString() : String(v);
+      }
+    }
 
     const intentParams = {
       amount: amountCents,
       currency: (currency || 'lkr').toLowerCase(),
-      automatic_payment_methods: { enabled: true },
+      payment_method_types: ['card'],
       metadata: meta,
     };
 
-    const requestOpts = idempotencyKey ? { idempotencyKey: String(idempotencyKey).slice(0, 255) } : {};
-
-    const paymentIntent = await stripe.paymentIntents.create(intentParams, requestOpts);
+    // Never pass a second `{}` — stripe-node only treats the 2nd arg as options if it has idempotencyKey, apiKey, etc.
+    const paymentIntent = idempotencyKey
+      ? await stripe.paymentIntents.create(intentParams, {
+          idempotencyKey: String(idempotencyKey).slice(0, 255),
+        })
+      : await stripe.paymentIntents.create(intentParams);
 
     const payment = new Payment({
       customerId: String(customerId),

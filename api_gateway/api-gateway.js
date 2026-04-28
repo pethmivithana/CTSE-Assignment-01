@@ -211,9 +211,16 @@ const proxyToRestaurantService = async (req, res) => {
 app.use('/api/restaurants', proxyToRestaurantService);
 app.use('/api/categories', proxyToRestaurantService);
 app.use('/api/menu-items', proxyToRestaurantService);
+// Restaurant menu images (restaurant-service /uploads)
 app.use('/api/uploads', (req, res) => {
   req.url = '/uploads' + (req.url === '/' ? '' : req.url || '');
   proxy.web(req, res, { target: RESTAURANT_SERVICE_URL });
+});
+// User profile pictures live on user-service — NOT restaurant uploads
+app.use('/api/user-uploads', (req, res) => {
+  const suffix = req.url === '/' ? '' : req.url;
+  req.url = '/uploads' + suffix;
+  proxy.web(req, res, { target: USER_SERVICE_URL });
 });
 
 // Stripe / payment webhooks — raw body, no JWT (signature verified by payment service)
@@ -249,6 +256,9 @@ app.use('/api/payments', authenticate, async (req, res) => {
     'Content-Type': req.headers['content-type'] || 'application/json',
     'Authorization': req.headers['authorization'],
   };
+  // Stripe idempotency (create-intent) — must reach payment-service or stripe-node gets a stray `{}` as 2nd arg
+  const idem = req.headers['idempotency-key'] || req.headers['Idempotency-Key'];
+  if (idem) headers['Idempotency-Key'] = idem;
   try {
     const config = { method: req.method, url: targetUrl, headers, validateStatus: () => true };
     if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
@@ -348,10 +358,37 @@ const proxyToDeliveryService = async (req, res) => {
 };
 app.use('/api/delivery', proxyToDeliveryService);
 
-// Notification Service - internal/callback (services call directly; gateway can proxy if needed)
-app.use('/api/notifications', (req, res) => {
-  proxy.web(req, res, { target: NOTIFICATION_SERVICE_URL });
-});
+// Notification Service — use full originalUrl (Express strips mount path; plain http-proxy would hit /me → 404)
+const proxyToNotificationService = async (req, res) => {
+  const path = req.originalUrl;
+  const targetUrl = `${NOTIFICATION_SERVICE_URL}${path}`;
+  const headers = { 'Content-Type': req.headers['content-type'] || 'application/json' };
+  if (req.headers['authorization']) headers['Authorization'] = req.headers['authorization'];
+  try {
+    const config = { method: req.method, url: targetUrl, headers, validateStatus: () => true, timeout: 15000 };
+    if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
+      const body = await new Promise((resolve, reject) => {
+        const chunks = [];
+        req.on('data', (c) => chunks.push(c));
+        req.on('end', () => resolve(Buffer.concat(chunks)));
+        req.on('error', reject);
+      });
+      if (body.length) config.data = body;
+    }
+    const response = await axios(config);
+    const ct = response.headers['content-type'] || '';
+    if (ct.includes('application/json')) res.status(response.status).json(response.data);
+    else res.status(response.status).send(response.data);
+  } catch (err) {
+    if (err.code === 'ECONNREFUSED') {
+      console.error('Notification service not reachable at', NOTIFICATION_SERVICE_URL);
+      return res.status(502).json({ error: 'Notification service unavailable' });
+    }
+    console.error('Notification proxy error:', err.message);
+    res.status(502).json({ error: 'Notification service error', message: err.message });
+  }
+};
+app.use('/api/notifications', proxyToNotificationService);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
