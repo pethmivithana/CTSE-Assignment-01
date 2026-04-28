@@ -30,8 +30,28 @@ jobs:
             [ -f "$dir/package.json" ] && (cd $dir && npm ci 2>/dev/null || npm install 2>/dev/null || true)
           done
 
+      - name: Check Sonar configuration
+        id: sonar_cfg
+        shell: bash
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}
+          SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
+        run: |
+          if [ -z "$SONAR_TOKEN" ] || [ -z "$SONAR_ORGANIZATION" ] || [ -z "$SONAR_PROJECT_KEY" ]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Skipping SonarCloud scan. Set SONAR_TOKEN, SONAR_ORGANIZATION and SONAR_PROJECT_KEY repository secrets."
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: SonarCloud Scan
+        if: steps.sonar_cfg.outputs.enabled == 'true'
         uses: SonarSource/sonarcloud-github-action@v3
+        with:
+          args: >
+            -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
+            -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
