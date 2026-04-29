@@ -22,6 +22,72 @@ env:
   AZURE_SUBSCRIPTION_ID: 57d0d19c-a6b6-46fc-9d1b-38e100d968ff
 
 jobs:
+  detect-changes:
+    name: Detect changed services
+    runs-on: ubuntu-latest
+    outputs:
+      deploy_matrix: ${{ steps.detect.outputs.deploy_matrix }}
+      has_changes: ${{ steps.detect.outputs.has_changes }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Build changed-services matrix
+        id: detect
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          else
+            BASE_SHA="${{ github.event.before }}"
+            if [[ -z "$BASE_SHA" || "$BASE_SHA" == "0000000000000000000000000000000000000000" ]]; then
+              BASE_SHA="$(git rev-parse HEAD~1)"
+            fi
+          fi
+
+          echo "Comparing changes from $BASE_SHA to $GITHUB_SHA"
+          CHANGED_FILES="$(git diff --name-only "$BASE_SHA" "$GITHUB_SHA" || true)"
+          echo "$CHANGED_FILES"
+
+          DEPLOY_MATRIX='{"include":[]}'
+
+          add_component() {
+            local name="$1"
+            local context="$2"
+            local file="$3"
+            local image="$4"
+            local app="$5"
+            DEPLOY_MATRIX="$(jq --arg name "$name" --arg context "$context" --arg file "$file" --arg image "$image" --arg app "$app" '.include += [{"name":$name,"context":$context,"file":$file,"image":$image,"app":$app}]' <<<"$DEPLOY_MATRIX")"
+          }
+
+          has_path() {
+            local prefix="$1"
+            grep -q "^${prefix}" <<<"$CHANGED_FILES"
+          }
+
+          has_path "services/user-service/" && add_component "user-service" "services/user-service" "services/user-service/Dockerfile" "feedo-user-service" "user-service"
+          has_path "services/restaurant-service/" && add_component "restaurant-service" "services/restaurant-service" "services/restaurant-service/Dockerfile" "feedo-restaurant-service" "restaurant-service"
+          has_path "services/order-service/" && add_component "order-service" "services/order-service" "services/order-service/Dockerfile" "feedo-order-service" "order-service-feedo"
+          has_path "services/delivery-service/" && add_component "delivery-service" "services/delivery-service" "services/delivery-service/Dockerfile" "feedo-delivery-service" "delivery-service"
+          has_path "services/payment-service/" && add_component "payment-service" "services/payment-service" "services/payment-service/Dockerfile" "feedo-payment-service" "payment-service-feedo"
+          has_path "services/notification-service/" && add_component "notification-service" "services/notification-service" "services/notification-service/Dockerfile" "feedo-notification-service" "notification-service-feedo"
+          has_path "api_gateway/" && add_component "api-gateway" "api_gateway" "api_gateway/Dockerfile" "feedo-api-gateway" "api-gateway-feedo"
+          has_path "food-delivery-frontend/" && add_component "frontend" "food-delivery-frontend" "food-delivery-frontend/Dockerfile" "feedo-frontend" "frontend-feedo"
+
+          HAS_CHANGES="false"
+          if [[ "$(jq '.include | length' <<<"$DEPLOY_MATRIX")" -gt 0 ]]; then
+            HAS_CHANGES="true"
+          fi
+
+          {
+            echo "deploy_matrix<<EOF"
+            echo "$DEPLOY_MATRIX"
+            echo "EOF"
+            echo "has_changes=$HAS_CHANGES"
+          } >> "$GITHUB_OUTPUT"
+
   # --- Lint / test each Node service ---
   build-and-test:
     name: Test ${{ matrix.service }}
@@ -92,56 +158,15 @@ jobs:
   push-images:
     name: Push ${{ matrix.name }}
     runs-on: ubuntu-latest
-    needs: [build-and-test, gateway, frontend]
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    needs: [detect-changes, build-and-test, gateway, frontend]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') && needs.detect-changes.outputs.has_changes == 'true'
     permissions:
       contents: read
       id-token: write
 
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - name: user-service
-            context: services/user-service
-            file: services/user-service/Dockerfile
-            image: feedo-user-service
-            app: user-service
-          - name: restaurant-service
-            context: services/restaurant-service
-            file: services/restaurant-service/Dockerfile
-            image: feedo-restaurant-service
-            app: restaurant-service
-          - name: order-service
-            context: services/order-service
-            file: services/order-service/Dockerfile
-            image: feedo-order-service
-            app: order-service-feedo
-          - name: delivery-service
-            context: services/delivery-service
-            file: services/delivery-service/Dockerfile
-            image: feedo-delivery-service
-            app: delivery-service
-          - name: payment-service
-            context: services/payment-service
-            file: services/payment-service/Dockerfile
-            image: feedo-payment-service
-            app: payment-service-feedo
-          - name: notification-service
-            context: services/notification-service
-            file: services/notification-service/Dockerfile
-            image: feedo-notification-service
-            app: notification-service-feedo
-          - name: api-gateway
-            context: api_gateway
-            file: api_gateway/Dockerfile
-            image: feedo-api-gateway
-            app: api-gateway-feedo
-          - name: frontend
-            context: food-delivery-frontend
-            file: food-delivery-frontend/Dockerfile
-            image: feedo-frontend
-            app: frontend-feedo
+      matrix: ${{ fromJson(needs.detect-changes.outputs.deploy_matrix) }}
 
     steps:
       - uses: actions/checkout@v4
@@ -179,39 +204,14 @@ jobs:
   deploy:
     name: Deploy ${{ matrix.name }}
     runs-on: ubuntu-latest
-    needs: [push-images]
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    needs: [detect-changes, push-images]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') && needs.detect-changes.outputs.has_changes == 'true'
     permissions:
       contents: read
       id-token: write
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - name: user-service
-            app: user-service
-            image: feedo-user-service
-          - name: restaurant-service
-            app: restaurant-service
-            image: feedo-restaurant-service
-          - name: order-service
-            app: order-service-feedo
-            image: feedo-order-service
-          - name: delivery-service
-            app: delivery-service
-            image: feedo-delivery-service
-          - name: payment-service
-            app: payment-service-feedo
-            image: feedo-payment-service
-          - name: notification-service
-            app: notification-service-feedo
-            image: feedo-notification-service
-          - name: api-gateway
-            app: api-gateway-feedo
-            image: feedo-api-gateway
-          - name: frontend
-            app: frontend-feedo
-            image: feedo-frontend
+      matrix: ${{ fromJson(needs.detect-changes.outputs.deploy_matrix) }}
     steps:
       - name: Azure login
         uses: azure/login@v2
