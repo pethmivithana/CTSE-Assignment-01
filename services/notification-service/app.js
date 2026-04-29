@@ -49,7 +49,9 @@ app.post('/notifications/customer', (req, res) => {
 app.get('/health', (req, res) => res.json({ status: 'ok', service: 'notification-service' }));
 
 mongoose
-  .connect(process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/feedo-notifications')
+  .connect(process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/feedo-notifications', {
+    retryWrites: false,
+  })
   .then(() => {
     console.log('Notification service MongoDB connected');
     app.listen(PORT, () => console.log(`Notification service on port ${PORT}`));

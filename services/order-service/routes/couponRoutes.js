@@ -9,7 +9,10 @@ router.use(adminMiddleware);
 
 router.get('/', async (req, res) => {
   try {
-    const coupons = await Coupon.find().sort({ createdAt: -1 }).lean();
+    // Cosmos Mongo may reject ORDER BY on excluded index paths.
+    // Fetch first, then sort in-memory to keep endpoint stable.
+    const coupons = await Coupon.find().lean();
+    coupons.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
     res.json({ success: true, data: coupons });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

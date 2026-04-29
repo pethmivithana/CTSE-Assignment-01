@@ -49,8 +49,8 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Database connection
-mongoose.connect(process.env.MONGODB_URI)
+// Database connection (Cosmos Mongo requires retryable writes off)
+mongoose.connect(process.env.MONGODB_URI, { retryWrites: false })
   .then(() => {
     logger.info('Connected to MongoDB');
     

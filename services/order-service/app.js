@@ -16,8 +16,8 @@ const app = express();
 app.use(cors({ origin: ['http://localhost:3000', 'http://localhost:3001'], credentials: true }));
 app.use(express.json());
 
-// MongoDB connection
-mongoose.connect(process.env.MONGO_URI)
+// MongoDB connection (Cosmos Mongo requires retryable writes off)
+mongoose.connect(process.env.MONGO_URI, { retryWrites: false })
     .then(() => console.log("✅ MongoDB connected"))
     .catch((err) => console.error("⚠️ MongoDB connection error:", err));
 
@@ -33,12 +33,16 @@ setInterval(async () => {
     if (mongoose.connection.readyState !== 1) return;
     isRecoveryRunning = true;
     try {
-        const stuckReadyOrders = await Order.find({
+        let stuckReadyOrders = await Order.find({
             status: "READY",
             $or: [{ deliveryId: null }, { deliveryId: { $exists: false } }],
         })
-            .sort({ createdAt: 1 })
             .limit(10);
+        // Cosmos Mongo may reject ORDER BY on excluded index paths.
+        // Keep deterministic processing by sorting in-memory instead.
+        stuckReadyOrders = stuckReadyOrders.sort(
+            (a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0)
+        );
 
         for (const order of stuckReadyOrders) {
             try {

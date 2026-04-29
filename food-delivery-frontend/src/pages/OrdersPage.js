@@ -59,6 +59,14 @@ const OrdersPage = () => {
     fetchOrders();
   }, [user, navigate]);
 
+  useEffect(() => {
+    if (!user || user.role !== 'customer') return undefined;
+    const id = setInterval(() => {
+      refresh().catch(() => {});
+    }, 8000);
+    return () => clearInterval(id);
+  }, [user]);
+
   const getStatusBadge = (status) => {
     const config = statusConfig[status] || { label: status, class: 'bg-gray-100 text-gray-700' };
     return <span className={`px-3 py-1 rounded-full text-xs font-medium ${config.class}`}>{config.label}</span>;

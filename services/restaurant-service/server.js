@@ -66,8 +66,8 @@ app.use('/api/menu-items', menuRoutes);
 app.use('/api/restaurants', restaurantRoutes);
 app.use('/api/categories', categoryRoutes);
 
-// Database connection
-mongoose.connect(process.env.MONGODB_URI)
+// Database connection (Cosmos Mongo requires retryable writes off)
+mongoose.connect(process.env.MONGODB_URI, { retryWrites: false })
 .then(() => console.log('MongoDB Connected Successfully'))
 .catch(err => console.log('MongoDB Connection Error:', err));
 

@@ -6,7 +6,8 @@ const jwt = require('jsonwebtoken');
 const axios = require('axios');
 
 const app = express();
-const proxy = httpProxy.createProxyServer();
+// changeOrigin is required in ACA so upstream host header matches target service
+const proxy = httpProxy.createProxyServer({ changeOrigin: true });
 
 // NOTE: Do NOT add express.json() here - it consumes the request body stream
 // and breaks http-proxy's ability to forward POST bodies to backend services.
@@ -22,8 +23,29 @@ const NOTIFICATION_SERVICE_URL = process.env.NOTIFICATION_SERVICE_URL || 'http:/
 const PAYMENT_SERVICE_URL = process.env.PAYMENT_SERVICE_URL || 'http://localhost:3006';
 const JWT_SECRET = process.env.JWT_SECRET || 'jasonwebtoken';
 
+const allowedOrigins = new Set([
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+]);
+
+const isAzureContainerAppsOrigin = (origin) => {
+  if (!origin) return false;
+  try {
+    const url = new URL(origin);
+    return url.hostname.endsWith('.azurecontainerapps.io');
+  } catch (_) {
+    return false;
+  }
+};
+
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+  origin: (origin, callback) => {
+    // Allow non-browser calls (curl/health checks) and approved browser origins
+    if (!origin || allowedOrigins.has(origin) || isAzureContainerAppsOrigin(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error(`CORS blocked for origin: ${origin}`));
+  },
   credentials: true,
   exposedHeaders: ['x-user-id', 'x-user-role']
 }));
@@ -58,25 +80,38 @@ const authenticate = (req, res, next) => {
   }
 };
 
-app.post('/auth/login', (req, res) => {
-    proxy.web(req, res, { target: USER_SERVICE_URL });
-});
+const forwardAuthToUserService = async (req, res) => {
+  const targetUrl = `${USER_SERVICE_URL}${req.originalUrl}`;
+  const headers = { 'Content-Type': req.headers['content-type'] || 'application/json' };
+  if (req.headers['authorization']) headers['Authorization'] = req.headers['authorization'];
 
-app.post('/auth/register', (req, res) => {
-  proxy.web(req, res, { target: USER_SERVICE_URL });
-});
+  try {
+    const config = { method: req.method, url: targetUrl, headers, validateStatus: () => true, timeout: 10000 };
+    if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
+      const body = await new Promise((resolve, reject) => {
+        const chunks = [];
+        req.on('data', (c) => chunks.push(c));
+        req.on('end', () => resolve(Buffer.concat(chunks)));
+        req.on('error', reject);
+      });
+      if (body.length) config.data = body;
+    }
+    const response = await axios(config);
+    const ct = response.headers['content-type'] || '';
+    if (ct.includes('application/json')) {
+      return res.status(response.status).json(response.data);
+    }
+    return res.status(response.status).send(response.data);
+  } catch (err) {
+    return res.status(502).json({ status: false, message: 'User auth service unavailable' });
+  }
+};
 
-app.post('/auth/refresh', (req, res) => {
-  proxy.web(req, res, { target: USER_SERVICE_URL });
-});
-
-app.post('/auth/forgot-password', (req, res) => {
-  proxy.web(req, res, { target: USER_SERVICE_URL });
-});
-
-app.post('/auth/reset-password', (req, res) => {
-  proxy.web(req, res, { target: USER_SERVICE_URL });
-});
+app.post('/auth/login', forwardAuthToUserService);
+app.post('/auth/register', forwardAuthToUserService);
+app.post('/auth/refresh', forwardAuthToUserService);
+app.post('/auth/forgot-password', forwardAuthToUserService);
+app.post('/auth/reset-password', forwardAuthToUserService);
 
 app.put('/auth/change-password', authenticate, (req, res) => {
   proxy.web(req, res, {

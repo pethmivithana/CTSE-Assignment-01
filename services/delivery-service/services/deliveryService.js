@@ -250,10 +250,15 @@ exports.getNearbyDrivers = async (latitude, longitude, maxDistance = 5) => {
 
 exports.processPendingDeliveries = async () => {
   try {
-    const pendingDeliveries = await Delivery.find({
+    let pendingDeliveries = await Delivery.find({
       status: 'CONFIRMED',
       driverId: null,
-    }).sort({ createdAt: 1 });
+    });
+    // Cosmos Mongo may reject ORDER BY on excluded index paths.
+    // Keep deterministic processing by sorting in-memory.
+    pendingDeliveries = pendingDeliveries.sort(
+      (a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0),
+    );
 
     logger.info(`Processing ${pendingDeliveries.length} pending deliveries`);
 

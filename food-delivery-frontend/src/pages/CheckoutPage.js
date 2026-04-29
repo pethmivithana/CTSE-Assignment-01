@@ -595,8 +595,15 @@ const CheckoutPage = () => {
   }, [restaurant, street, city, selectedAddressId, addresses.length, getTotalPrice]);
 
   useEffect(() => {
-    if (!user) navigate('/profile');
-    else if (cart.length === 0) navigate('/restaurants');
+    if (!user) {
+      navigate('/profile');
+      return;
+    }
+    if (user.role !== 'customer') {
+      navigate('/');
+      return;
+    }
+    if (cart.length === 0) navigate('/restaurants');
   }, [user, cart, navigate]);
 
   useEffect(() => {

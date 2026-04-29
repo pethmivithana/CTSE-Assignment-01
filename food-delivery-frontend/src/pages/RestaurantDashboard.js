@@ -25,8 +25,8 @@ const RestaurantDashboard = () => {
     }
   }, [user, navigate, activeTab]);
 
-  const loadData = async () => {
-    setLoading(true);
+  const loadData = async ({ silent = false } = {}) => {
+    if (!silent) setLoading(true);
     setError(null);
     try {
       const rest = await api.getMyRestaurant();
@@ -46,9 +46,19 @@ const RestaurantDashboard = () => {
     } catch (err) {
       setError(err.message || 'Failed to load data');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!user || user.role !== 'restaurantManager') return undefined;
+    const shouldAutoRefresh = activeTab === 'orders' || activeTab === 'analytics';
+    if (!shouldAutoRefresh) return undefined;
+    const id = setInterval(() => {
+      loadData({ silent: true }).catch(() => {});
+    }, activeTab === 'orders' ? 7000 : 15000);
+    return () => clearInterval(id);
+  }, [user, activeTab]);
 
   const handleCreateRestaurant = async () => {
     setLoading(true);
@@ -83,12 +93,12 @@ const RestaurantDashboard = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-surface-50 py-8">
+    <div className="dashboard-shell">
       <div className="w-full min-w-0 mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+        <div className="glass-panel p-5 md:p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div>
-            <h1 className="text-2xl font-display font-bold text-gray-800">Restaurant Dashboard</h1>
-            <p className="text-gray-600 mt-1">{restaurant?.name || (loading ? 'Loading...' : 'Your restaurant')}</p>
+            <h1 className="dashboard-title">Restaurant Dashboard</h1>
+            <p className="dashboard-subtitle">{restaurant?.name || (loading ? 'Loading...' : 'Your restaurant')}</p>
           </div>
           {restaurant && (
             <OpenCloseToggle restaurant={restaurant} onUpdate={loadData} />

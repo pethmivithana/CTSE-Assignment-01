@@ -21,7 +21,10 @@ exports.getCategories = async (req, res) => {
       if (!mongoose.Types.ObjectId.isValid(restaurantId)) return res.json([]);
       query.restaurantId = new mongoose.Types.ObjectId(restaurantId);
     }
-    const categories = await MenuCategory.find(query).sort({ sortOrder: 1 });
+    // Cosmos Mongo may reject ORDER BY on excluded index paths.
+    // Fetch first, then sort in-memory by sortOrder.
+    const categories = await MenuCategory.find(query);
+    categories.sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0));
     res.json(categories);
   } catch (err) {
     res.status(500).json({ error: err.message });

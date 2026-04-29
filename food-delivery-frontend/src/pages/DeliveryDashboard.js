@@ -18,9 +18,9 @@ const DeliveryDashboard = () => {
   const [podPhoto, setPodPhoto] = useState(null);
   const [geoActive, setGeoActive] = useState(false);
 
-  const loadData = async (trySync = true) => {
+  const loadData = async (trySync = true, { silent = false } = {}) => {
     if (!user) return;
-    setLoading(true);
+    if (!silent) setLoading(true);
     setError(null);
     try {
       let driverRes = await api.getDriverProfile().catch(() => null);
@@ -39,7 +39,7 @@ const DeliveryDashboard = () => {
     } catch (err) {
       setError(err.message || 'Failed to load data');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -50,6 +50,14 @@ const DeliveryDashboard = () => {
       navigate('/');
     }
   }, [user, navigate]);
+
+  useEffect(() => {
+    if (!user || user.role !== 'deliveryPerson') return undefined;
+    const id = setInterval(() => {
+      loadData(false, { silent: true }).catch(() => {});
+    }, 6000);
+    return () => clearInterval(id);
+  }, [user]);
 
   /** Share live location while on an active delivery */
   useEffect(() => {
@@ -165,12 +173,12 @@ const DeliveryDashboard = () => {
   const d = driver?.driver;
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="dashboard-shell">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+        <div className="glass-panel p-5 md:p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div>
-            <h1 className="text-2xl font-bold text-gray-800">Delivery Dashboard</h1>
-            <p className="text-gray-600 mt-1">{d?.name || user?.fullName || 'Driver'}</p>
+            <h1 className="dashboard-title">Delivery Dashboard</h1>
+            <p className="dashboard-subtitle">{d?.name || user?.fullName || 'Driver'}</p>
           </div>
           {d && (
             <div className="flex items-center gap-3">

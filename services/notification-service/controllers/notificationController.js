@@ -32,6 +32,7 @@ exports.listMine = async (req, res) => {
 
     res.json({
       notifications: items,
+      items,
       pagination: { page, limit, total, pages: Math.ceil(total / limit) },
       unreadCount: unread,
     });

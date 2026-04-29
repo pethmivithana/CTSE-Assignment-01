@@ -38,7 +38,7 @@ router.get(
   customerMiddleware, 
   (req, res, next) => {
     // Set customerId from authenticated user
-    req.params.customerId = req.user._id;
+    req.params.customerId = req.user?._id || req.user?.id;
     next();
   },
   orderController.getCustomerOrders
@@ -73,7 +73,10 @@ router.get(
           message: 'No restaurant linked. Please complete your restaurant profile in the dashboard first.' 
         });
       }
-      const orders = await Order.find({ restaurantId }).sort({ createdAt: -1 });
+      // Cosmos Mongo may reject DB-level ORDER BY if the index path is excluded.
+      // Fetch first, then sort in memory to keep this endpoint resilient.
+      let orders = await Order.find({ restaurantId });
+      orders = orders.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
       
       res.status(200).json({ 
         success: true, 

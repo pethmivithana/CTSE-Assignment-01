@@ -54,6 +54,12 @@ export default function OrderTrackPage() {
   const [deliveryTrack, setDeliveryTrack] = useState(null);
   const [pollTick, setPollTick] = useState(0);
 
+  const loadOrderTrack = useCallback(async () => {
+    const res = await api.trackOrder(orderId);
+    const data = res.data || res;
+    setOrderPayload(data);
+  }, [orderId]);
+
   const loadDeliveryTrack = useCallback(async () => {
     const token = localStorage.getItem('foodAppToken');
     try {
@@ -103,8 +109,8 @@ export default function OrderTrackPage() {
 
   useEffect(() => {
     if (pollTick === 0) return;
-    loadDeliveryTrack();
-  }, [pollTick, loadDeliveryTrack]);
+    Promise.all([loadOrderTrack(), loadDeliveryTrack()]).catch(() => {});
+  }, [pollTick, loadDeliveryTrack, loadOrderTrack]);
 
   const routeLine = useMemo(() => {
     const g = deliveryTrack?.routeGeometry;
@@ -200,6 +206,31 @@ export default function OrderTrackPage() {
               Route ~{Math.round(deliveryTrack.routeDurationMinutes)} min
             </p>
           )}
+        </div>
+      )}
+
+      {deliveryTrack?.driver && (
+        <div className="card p-5 mb-6 border border-gray-200">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Driver details</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+            <p className="text-gray-700">
+              <span className="font-semibold text-gray-900">Name:</span>{' '}
+              {deliveryTrack.driver.name || 'Assigned'}
+            </p>
+            <p className="text-gray-700">
+              <span className="font-semibold text-gray-900">Phone:</span>{' '}
+              {deliveryTrack.driver.phone || 'Not available'}
+            </p>
+            {deliveryTrack.driver.vehicleDetails?.model && (
+              <p className="text-gray-700 sm:col-span-2">
+                <span className="font-semibold text-gray-900">Vehicle:</span>{' '}
+                {deliveryTrack.driver.vehicleDetails.model}
+                {deliveryTrack.driver.vehicleDetails.plateNumber
+                  ? ` (${deliveryTrack.driver.vehicleDetails.plateNumber})`
+                  : ''}
+              </p>
+            )}
+          </div>
         </div>
       )}
 

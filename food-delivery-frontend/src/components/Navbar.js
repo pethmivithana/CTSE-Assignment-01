@@ -18,6 +18,15 @@ const Navbar = () => {
   const cartItemsCount = cart.reduce((total, item) => total + item.quantity, 0);
   const showRestaurantLogo = restaurant?.logo && !avatarError;
   const avatarUrl = showRestaurantLogo ? `${API_URL}/api/uploads/${restaurant.logo}` : null;
+  const isCustomer = user?.role === 'customer';
+  const dashboardPath =
+    user?.role === 'restaurantManager'
+      ? '/restaurant/dashboard'
+      : user?.role === 'deliveryPerson'
+      ? '/delivery/dashboard'
+      : user?.role === 'admin'
+      ? '/admin'
+      : '/profile';
 
   useEffect(() => {
     if (user?.role === 'restaurantManager') {
@@ -49,8 +58,8 @@ const Navbar = () => {
   }, [user]);
 
   return (
-    <nav className="bg-white/95 backdrop-blur-sm border-b border-gray-100 shadow-sm sticky top-0 z-50">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6">
+    <nav className="bg-white backdrop-blur-xl border-b border-gray-100 shadow-sm sticky top-0 z-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="flex justify-between h-16">
           <Link to="/" className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-full bg-white border border-sky-100 flex items-center justify-center shadow-sm">
@@ -81,6 +90,28 @@ const Navbar = () => {
               </svg>
               Restaurants
             </Link>
+            {user && isCustomer && (
+              <Link
+                to="/orders"
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-gray-600 hover:text-primary-600 hover:bg-primary-50 transition-colors font-medium"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2" />
+                </svg>
+                Orders
+              </Link>
+            )}
+            {user && !isCustomer && (
+              <Link
+                to={dashboardPath}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-gray-600 hover:text-primary-600 hover:bg-primary-50 transition-colors font-medium"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0h6" />
+                </svg>
+                Dashboard
+              </Link>
+            )}
 
             {user && (
               <Link to="/notifications" className="relative ml-2 p-2 rounded-lg hover:bg-gray-100 transition-colors" title="Notifications">
@@ -128,13 +159,19 @@ const Navbar = () => {
                   </svg>
                 </button>
                 {isMenuOpen && (
-                  <div className="absolute right-0 mt-1 w-48 bg-white rounded-xl shadow-elevated py-2 border border-gray-100 z-20">
+                  <div className="absolute right-0 mt-1 w-48 bg-white/95 backdrop-blur-md rounded-xl shadow-elevated-lg py-2 border border-gray-100 z-20">
                     <Link to="/profile" className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50" onClick={() => setIsMenuOpen(false)}>
                       Profile
                     </Link>
-                    <Link to="/orders" className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50" onClick={() => setIsMenuOpen(false)}>
-                      Orders
-                    </Link>
+                    {isCustomer ? (
+                      <Link to="/orders" className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50" onClick={() => setIsMenuOpen(false)}>
+                        Orders
+                      </Link>
+                    ) : (
+                      <Link to={dashboardPath} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50" onClick={() => setIsMenuOpen(false)}>
+                        Dashboard
+                      </Link>
+                    )}
                     <Link to="/notifications" className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50" onClick={() => setIsMenuOpen(false)}>
                       Notifications
                       {unreadNotifications > 0 && (
@@ -217,6 +254,16 @@ const Navbar = () => {
               </svg>
               Restaurants
             </Link>
+            {user && isCustomer && (
+              <Link to="/orders" className="block py-3 px-4 rounded-lg text-gray-700 hover:bg-gray-50 font-medium" onClick={() => setIsMenuOpen(false)}>
+                Orders
+              </Link>
+            )}
+            {user && !isCustomer && (
+              <Link to={dashboardPath} className="block py-3 px-4 rounded-lg text-gray-700 hover:bg-gray-50 font-medium" onClick={() => setIsMenuOpen(false)}>
+                Dashboard
+              </Link>
+            )}
             <Link to="/profile" className="block py-3 px-4 rounded-lg text-gray-700 hover:bg-gray-50 font-medium" onClick={() => setIsMenuOpen(false)}>
               {user ? 'Profile' : 'Sign In'}
             </Link>
@@ -225,7 +272,6 @@ const Navbar = () => {
                 <Link to="/notifications" className="block py-3 px-4 rounded-lg text-gray-700 hover:bg-gray-50 font-medium" onClick={() => setIsMenuOpen(false)}>
                   Notifications{unreadNotifications > 0 ? ` (${unreadNotifications})` : ''}
                 </Link>
-                <Link to="/orders" className="block py-3 px-4 rounded-lg text-gray-700 hover:bg-gray-50 font-medium" onClick={() => setIsMenuOpen(false)}>Orders</Link>
                 {user.role === 'admin' && <Link to="/admin" className="block py-3 px-4 rounded-lg text-gray-700 hover:bg-gray-50 font-medium" onClick={() => setIsMenuOpen(false)}>Admin</Link>}
                 {user.role === 'restaurantManager' && <Link to="/restaurant/dashboard" className="block py-3 px-4 rounded-lg text-gray-700 hover:bg-gray-50 font-medium" onClick={() => setIsMenuOpen(false)}>Restaurant</Link>}
                 <button onClick={() => { logout(); setIsMenuOpen(false); }} className="block w-full text-left py-3 px-4 rounded-lg text-red-600 hover:bg-red-50 font-medium">Logout</button>

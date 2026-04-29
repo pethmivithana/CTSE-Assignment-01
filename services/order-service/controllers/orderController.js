@@ -71,6 +71,13 @@ exports.createOrder = async (req, res) => {
       deliveryFee = 0,
       addressId,
     } = req.body;
+    const userRole = String(req.user?.role || '').toLowerCase();
+    if (userRole !== 'customer') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only customers can place orders',
+      });
+    }
 
     if (!items?.length) {
       return res.status(400).json({ success: false, message: 'Cart is empty' });
@@ -158,10 +165,14 @@ exports.getCustomerOrders = async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(customerId)) {
       return res.status(400).json({ success: false, message: 'Invalid customer ID format' });
     }
-    if (req.user.role !== 'admin' && req.user._id.toString() !== customerId) {
+    const requesterId = (req.user?._id || req.user?.id || '').toString();
+    if (req.user.role !== 'admin' && requesterId !== customerId) {
       return res.status(403).json({ success: false, message: 'Access denied: You can only view your own orders' });
     }
-    const orders = await Order.find({ customerId }).sort({ createdAt: -1 });
+    // Cosmos Mongo may reject DB-level ORDER BY on excluded index paths.
+    // Sort in memory to avoid hard failures in production.
+    let orders = await Order.find({ customerId });
+    orders = orders.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
     res.status(200).json({ success: true, count: orders.length, data: orders });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to fetch orders', error: error.message });

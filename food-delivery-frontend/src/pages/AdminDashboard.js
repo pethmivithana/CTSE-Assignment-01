@@ -255,19 +255,30 @@ const AdminDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-surface-50 py-8">
-      <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
-        <h1 className="text-2xl font-display font-bold text-gray-800 mb-2">Admin Dashboard</h1>
+    <div className="dashboard-shell">
+      <div className="dashboard-container">
+        <div className="glass-panel p-5 md:p-6 mb-6 md:mb-8">
+          <h1 className="dashboard-title">Admin Dashboard</h1>
+          <p className="dashboard-subtitle">Manage users, approvals, and coupon campaigns from one place.</p>
+        </div>
         <div className="flex gap-2 mb-8">
           <button
             onClick={() => setTab('users')}
-            className={`px-4 py-2 rounded-lg font-medium ${tab === 'users' ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-600'}`}
+            className={`px-4 py-2 rounded-xl font-medium transition-all ${
+              tab === 'users'
+                ? 'bg-primary-500 text-white shadow-md'
+                : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+            }`}
           >
             Users
           </button>
           <button
             onClick={() => setTab('coupons')}
-            className={`px-4 py-2 rounded-lg font-medium ${tab === 'coupons' ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-600'}`}
+            className={`px-4 py-2 rounded-xl font-medium transition-all ${
+              tab === 'coupons'
+                ? 'bg-primary-500 text-white shadow-md'
+                : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+            }`}
           >
             Coupons
           </button>

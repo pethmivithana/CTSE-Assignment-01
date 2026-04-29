@@ -16,6 +16,13 @@ const PLACEHOLDER_IMAGES = {
   Indian: 'https://images.unsplash.com/photo-1603894584373-5ac82b2ae398?w=600',
 };
 
+const normalizeReviewList = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.reviews)) return payload.reviews;
+  return [];
+};
+
 const MenuPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -62,7 +69,10 @@ const MenuPage = () => {
 
   useEffect(() => {
     if (id) {
-      api.getRestaurantReviews(id).then(setReviews).catch(() => setReviews([]));
+      api
+        .getRestaurantReviews(id)
+        .then((list) => setReviews(normalizeReviewList(list)))
+        .catch(() => setReviews([]));
     }
   }, [id]);
 
@@ -118,9 +128,20 @@ const MenuPage = () => {
     if (!user) { navigate('/profile'); return; }
     setReviewSubmitting(true);
     try {
-      await api.createReview(id, { rating: reviewRating, comment: reviewComment, orderId: reviewOrderId || undefined });
-      const [list, restData] = await Promise.all([api.getRestaurantReviews(id), api.getRestaurant(id)]);
-      setReviews(list);
+      const createdReview = await api.createReview(id, { rating: reviewRating, comment: reviewComment, orderId: reviewOrderId || undefined });
+      const normalizedCreated = createdReview?.data || createdReview;
+      if (normalizedCreated?._id) {
+        setReviews((prev) => [normalizedCreated, ...prev]);
+      } else {
+        const list = await api.getRestaurantReviews(id);
+        setReviews(normalizeReviewList(list));
+      }
+
+      const existingCount = reviews.length;
+      const updatedAvg = ((Number(restaurant?.rating || 0) * existingCount) + Number(reviewRating || 0)) / (existingCount + 1);
+      setRestaurant((prev) => (prev ? { ...prev, rating: Math.round(updatedAvg * 10) / 10 } : prev));
+
+      const restData = await api.getRestaurant(id);
       setRestaurant(restData);
       setShowReviewModal(false);
       setReviewComment('');

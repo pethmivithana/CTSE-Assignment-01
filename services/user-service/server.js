@@ -10,13 +10,16 @@ dotenv.config();
 const app = express();
 
 // Middlewares
+// Azure Container Apps sits behind reverse proxies and sets X-Forwarded-* headers.
+// Trust proxy so rate-limiter and req.ip work correctly.
+app.set("trust proxy", 1);
 app.use(cors());
 app.use(express.json());
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // MongoDB connection
 mongoose.connect(process.env.MONGO_URI, {
-   
+  retryWrites: false,
 })
     .then(async () => {
       console.log("✅ MongoDB connected");

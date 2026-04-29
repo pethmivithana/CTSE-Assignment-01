@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const reviewSchema = new mongoose.Schema({
+const reviewEntrySchema = new mongoose.Schema({
   restaurantId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Restaurant',
@@ -30,16 +30,12 @@ const reviewSchema = new mongoose.Schema({
     type: String,
     default: '',
   },
-}, { timestamps: true });
+}, { timestamps: true, collection: 'review_entries' });
 
-// Allow multiple reviews from the same customer over time.
-// Only enforce uniqueness for a specific completed order review.
-reviewSchema.index(
+// If orderId is provided, enforce one review per order by same customer.
+reviewEntrySchema.index(
   { restaurantId: 1, customerId: 1, orderId: 1 },
-  {
-    unique: true,
-    partialFilterExpression: { orderId: { $type: 'objectId' } },
-  },
+  { unique: true, partialFilterExpression: { orderId: { $type: 'objectId' } } },
 );
 
-module.exports = mongoose.model('Review', reviewSchema);
+module.exports = mongoose.model('ReviewEntry', reviewEntrySchema);

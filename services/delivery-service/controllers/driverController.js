@@ -292,11 +292,14 @@ exports.getDriverDeliveries = async (req, res) => {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     
-    const completedDeliveries = await Delivery.find({
+    let completedDeliveries = await Delivery.find({
       driverId: driverId,
       status: 'DELIVERED',
       updatedAt: { $gte: thirtyDaysAgo }
-    }).sort({ updatedAt: -1 });
+    });
+    completedDeliveries = completedDeliveries.sort(
+      (a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0),
+    );
     
     return res.status(200).json({
       currentDelivery: currentDelivery || null,

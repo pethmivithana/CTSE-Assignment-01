@@ -14,15 +14,20 @@ exports.orderPlaced = async (req, res) => {
       emailSubject: 'Your Feedo order was placed',
     });
 
-    await dispatch({
-      recipientType: 'restaurant',
-      recipientId: restaurantId,
-      type: 'ORDER_PLACED',
-      title: 'New order received',
-      data: { orderId, totalAmount },
-      emailTemplate: 'ORDER_PLACED_RESTAURANT',
-      emailSubject: 'New order on Feedo',
-    });
+    // Restaurant notification is best-effort; don't fail customer flow if this side fails.
+    try {
+      await dispatch({
+        recipientType: 'restaurant',
+        recipientId: restaurantId,
+        type: 'ORDER_PLACED',
+        title: 'New order received',
+        data: { orderId, totalAmount },
+        emailTemplate: 'ORDER_PLACED_RESTAURANT',
+        emailSubject: 'New order on Feedo',
+      });
+    } catch (restaurantDispatchError) {
+      console.warn('orderPlaced restaurant dispatch failed:', restaurantDispatchError.message);
+    }
 
     res.json({ message: 'Order placed notifications sent' });
   } catch (err) {
@@ -50,14 +55,18 @@ exports.orderAccepted = async (req, res) => {
       emailSubject: 'Feedo — Your order was accepted!',
     });
 
-    await dispatch({
-      recipientType: 'restaurant',
-      recipientId: restaurantId,
-      type: 'ORDER_ACCEPTED',
-      title: 'Order confirmed',
-      data: { orderId },
-      skipEmail: true,
-    });
+    try {
+      await dispatch({
+        recipientType: 'restaurant',
+        recipientId: restaurantId,
+        type: 'ORDER_ACCEPTED',
+        title: 'Order confirmed',
+        data: { orderId },
+        skipEmail: true,
+      });
+    } catch (restaurantDispatchError) {
+      console.warn('orderAccepted restaurant dispatch failed:', restaurantDispatchError.message);
+    }
 
     res.json({ message: 'Order accepted notifications sent' });
   } catch (err) {
@@ -80,14 +89,18 @@ exports.statusChange = async (req, res) => {
       emailSubject: `Feedo order ${status}`,
     });
 
-    await dispatch({
-      recipientType: 'restaurant',
-      recipientId: restaurantId,
-      type: 'ORDER_STATUS',
-      title,
-      data: { orderId, status },
-      skipEmail: true,
-    });
+    try {
+      await dispatch({
+        recipientType: 'restaurant',
+        recipientId: restaurantId,
+        type: 'ORDER_STATUS',
+        title,
+        data: { orderId, status },
+        skipEmail: true,
+      });
+    } catch (restaurantDispatchError) {
+      console.warn('statusChange restaurant dispatch failed:', restaurantDispatchError.message);
+    }
 
     res.json({ message: 'Status change notifications sent' });
   } catch (err) {
@@ -109,14 +122,18 @@ exports.orderDelivered = async (req, res) => {
       emailSubject: 'Feedo — Enjoy your meal!',
     });
 
-    await dispatch({
-      recipientType: 'restaurant',
-      recipientId: restaurantId,
-      type: 'ORDER_DELIVERED',
-      title: 'Order delivered',
-      data: { orderId },
-      skipEmail: true,
-    });
+    try {
+      await dispatch({
+        recipientType: 'restaurant',
+        recipientId: restaurantId,
+        type: 'ORDER_DELIVERED',
+        title: 'Order delivered',
+        data: { orderId },
+        skipEmail: true,
+      });
+    } catch (restaurantDispatchError) {
+      console.warn('orderDelivered restaurant dispatch failed:', restaurantDispatchError.message);
+    }
 
     res.json({ message: 'Order delivered notifications sent' });
   } catch (err) {

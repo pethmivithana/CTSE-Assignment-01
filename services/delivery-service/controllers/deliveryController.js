@@ -475,11 +475,12 @@ exports.getAllDeliveries = async (req, res) => {
             query.status = status;
         }
 
-        const deliveries = await Delivery.find(query)
-            .sort({ createdAt: -1 })
-            .skip(skip)
-            .limit(parseInt(limit))
+        let deliveries = await Delivery.find(query)
             .populate('driverId', 'name phone');
+        // Cosmos Mongo may reject ORDER BY on excluded index paths.
+        deliveries = deliveries
+            .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+            .slice(skip, skip + parseInt(limit));
 
         const total = await Delivery.countDocuments(query);
 
@@ -500,13 +501,13 @@ exports.getAllDeliveries = async (req, res) => {
 // Get available deliveries (CONFIRMED, no driver - for drivers to accept)
 exports.getAvailableDeliveries = async (req, res) => {
     try {
-        const deliveries = await Delivery.find({
+        let deliveries = await Delivery.find({
             status: 'CONFIRMED',
             driverId: null,
         })
-            .sort({ createdAt: -1 })
             .limit(50)
             .lean();
+        deliveries = deliveries.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
 
         return res.status(200).json({ deliveries });
     } catch (err) {

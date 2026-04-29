@@ -1,6 +1,33 @@
 const mongoose = require('mongoose');
 const MenuItem = require('../models/MenuItem');
 
+function parsePricesInput(prices, fallbackPrice) {
+  if (prices == null || prices === '') return null;
+  if (typeof prices === 'object') return prices;
+  if (typeof prices !== 'string') return null;
+
+  const candidates = [
+    prices,
+    prices.replace(/\\"/g, '"'),
+    prices.replace(/&quot;/g, '"'),
+    prices.replace(/'/g, '"'),
+  ];
+
+  for (const raw of candidates) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') return parsed;
+    } catch (_) {
+      // try next normalization candidate
+    }
+  }
+
+  if (fallbackPrice !== undefined && fallbackPrice !== null && fallbackPrice !== '') {
+    return { small: Number(fallbackPrice) };
+  }
+  return null;
+}
+
 exports.createMenuItem = async (req, res) => {
   try {
     const {
@@ -31,13 +58,8 @@ exports.createMenuItem = async (req, res) => {
       isVeg: isVeg !== false
     };
     if (categoryId && mongoose.Types.ObjectId.isValid(categoryId)) itemData.categoryId = new mongoose.Types.ObjectId(categoryId);
-    if (prices) {
-      try {
-        itemData.prices = typeof prices === 'string' ? JSON.parse(prices) : prices;
-      } catch (e) {
-        return res.status(400).json({ error: 'Invalid prices JSON' });
-      }
-    }
+    const parsedPrices = parsePricesInput(prices, price);
+    if (parsedPrices) itemData.prices = parsedPrices;
     if (price !== undefined) itemData.price = Number(price);
     if (stockQuantity !== undefined && stockQuantity !== '' && stockQuantity !== null) itemData.stockQuantity = Number(stockQuantity);
 
@@ -101,7 +123,10 @@ exports.updateMenuItem = async (req, res) => {
     if (isAvailable !== undefined) updatedFields.isAvailable = isAvailable;
     if (isOutOfStock !== undefined) updatedFields.isOutOfStock = isOutOfStock;
     if (isVeg !== undefined) updatedFields.isVeg = isVeg;
-    if (prices !== undefined) updatedFields.prices = typeof prices === 'string' ? JSON.parse(prices) : prices;
+    if (prices !== undefined) {
+      const parsedPrices = parsePricesInput(prices, price);
+      if (parsedPrices) updatedFields.prices = parsedPrices;
+    }
     if (price !== undefined) updatedFields.price = Number(price);
 
     const item = await MenuItem.findByIdAndUpdate(req.params.id, updatedFields, { new: true });
