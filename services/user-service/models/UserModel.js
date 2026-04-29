@@ -57,6 +57,7 @@ const UserSchema = new mongoose.Schema({
       return this.role === "customer";
     }
   },
+  firstLoginCompleted: { type: Boolean, default: false },
   // Account verification
   isVerified: { type: Boolean, default: false },
   verificationToken: { type: String },

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -32,6 +32,17 @@ function RecenterMap({ center, zoom = 14 }) {
   return null;
 }
 
+function FitMapToBounds({ points }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!Array.isArray(points) || points.length < 2) return;
+    const valid = points.filter((p) => Array.isArray(p) && p[0] != null && p[1] != null);
+    if (valid.length < 2) return;
+    map.fitBounds(valid, { padding: [36, 36], maxZoom: 15 });
+  }, [map, points]);
+  return null;
+}
+
 const DELIVERY_STATUS_LABEL = {
   PENDING: 'Pending',
   CONFIRMED: 'Finding driver',
@@ -53,6 +64,16 @@ export default function OrderTrackPage() {
   const [orderPayload, setOrderPayload] = useState(null);
   const [deliveryTrack, setDeliveryTrack] = useState(null);
   const [pollTick, setPollTick] = useState(0);
+  const [showRateDriver, setShowRateDriver] = useState(false);
+  const [driverRating, setDriverRating] = useState(5);
+  const [driverFeedback, setDriverFeedback] = useState('');
+  const [ratingSubmitting, setRatingSubmitting] = useState(false);
+  const [displayedDriverLoc, setDisplayedDriverLoc] = useState(null);
+  const [driverLastUpdatedAt, setDriverLastUpdatedAt] = useState(null);
+  const [driverUpdatedAgoSec, setDriverUpdatedAgoSec] = useState(0);
+  const animRef = useRef(null);
+  const driverLat = deliveryTrack?.driver?.currentLocation?.latitude;
+  const driverLng = deliveryTrack?.driver?.currentLocation?.longitude;
 
   const loadOrderTrack = useCallback(async () => {
     const res = await api.trackOrder(orderId);
@@ -103,7 +124,7 @@ export default function OrderTrackPage() {
   useEffect(() => {
     if (!deliveryTrack?.status) return;
     if (['DELIVERED', 'CANCELLED', 'FAILED'].includes(deliveryTrack.status)) return;
-    const id = setInterval(() => setPollTick((t) => t + 1), 5000);
+    const id = setInterval(() => setPollTick((t) => t + 1), 30000);
     return () => clearInterval(id);
   }, [deliveryTrack?.status]);
 
@@ -111,6 +132,46 @@ export default function OrderTrackPage() {
     if (pollTick === 0) return;
     Promise.all([loadOrderTrack(), loadDeliveryTrack()]).catch(() => {});
   }, [pollTick, loadDeliveryTrack, loadOrderTrack]);
+
+  useEffect(() => {
+    if (driverLat == null || driverLng == null) return;
+    setDriverLastUpdatedAt(new Date());
+    if (animRef.current) cancelAnimationFrame(animRef.current);
+    setDisplayedDriverLoc((prev) => {
+      if (!prev || prev.latitude == null || prev.longitude == null) {
+        return { latitude: driverLat, longitude: driverLng };
+      }
+      const start = performance.now();
+      const duration = 1200;
+      const fromLat = prev.latitude;
+      const fromLng = prev.longitude;
+      const toLat = driverLat;
+      const toLng = driverLng;
+      const tick = (now) => {
+        const t = Math.min((now - start) / duration, 1);
+        const eased = 1 - (1 - t) * (1 - t);
+        setDisplayedDriverLoc({
+          latitude: fromLat + (toLat - fromLat) * eased,
+          longitude: fromLng + (toLng - fromLng) * eased,
+        });
+        if (t < 1) animRef.current = requestAnimationFrame(tick);
+      };
+      animRef.current = requestAnimationFrame(tick);
+      return prev;
+    });
+    return () => {
+      if (animRef.current) cancelAnimationFrame(animRef.current);
+    };
+  }, [driverLat, driverLng]);
+
+  useEffect(() => {
+    if (!driverLastUpdatedAt) return undefined;
+    setDriverUpdatedAgoSec(0);
+    const id = setInterval(() => {
+      setDriverUpdatedAgoSec(Math.max(0, Math.floor((Date.now() - new Date(driverLastUpdatedAt).getTime()) / 1000)));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [driverLastUpdatedAt]);
 
   const routeLine = useMemo(() => {
     const g = deliveryTrack?.routeGeometry;
@@ -122,7 +183,7 @@ export default function OrderTrackPage() {
 
   const pickup = deliveryTrack?.pickupLocation;
   const dropoff = deliveryTrack?.dropoffLocation;
-  const driverLoc = deliveryTrack?.driver?.currentLocation;
+  const driverLoc = displayedDriverLoc || deliveryTrack?.driver?.currentLocation;
 
   const mapCenter = useMemo(() => {
     if (driverLoc?.latitude != null && driverLoc?.longitude != null) {
@@ -137,8 +198,57 @@ export default function OrderTrackPage() {
     return [6.9271, 79.8612];
   }, [driverLoc, pickup, dropoff]);
 
+  const mapPoints = useMemo(() => {
+    const pts = [];
+    if (pickup?.latitude != null && pickup?.longitude != null) pts.push([pickup.latitude, pickup.longitude]);
+    if (dropoff?.latitude != null && dropoff?.longitude != null) pts.push([dropoff.latitude, dropoff.longitude]);
+    if (driverLoc?.latitude != null && driverLoc?.longitude != null) pts.push([driverLoc.latitude, driverLoc.longitude]);
+    return pts;
+  }, [pickup, dropoff, driverLoc]);
+
+  const displayRoute = useMemo(() => {
+    if (routeLine.length > 1) return routeLine;
+    const p = pickup?.latitude != null && pickup?.longitude != null ? [pickup.latitude, pickup.longitude] : null;
+    const d = dropoff?.latitude != null && dropoff?.longitude != null ? [dropoff.latitude, dropoff.longitude] : null;
+    const r = driverLoc?.latitude != null && driverLoc?.longitude != null ? [driverLoc.latitude, driverLoc.longitude] : null;
+    if (r && p && d) return [r, p, d];
+    if (p && d) return [p, d];
+    if (r && d) return [r, d];
+    return [];
+  }, [routeLine, pickup, dropoff, driverLoc]);
+
+  const routeArrows = useMemo(() => {
+    if (!Array.isArray(displayRoute) || displayRoute.length < 2) return [];
+    const out = [];
+    for (let i = 0; i < displayRoute.length - 1; i += 1) {
+      const a = displayRoute[i];
+      const b = displayRoute[i + 1];
+      if (!a || !b) continue;
+      const dLat = b[0] - a[0];
+      const dLng = b[1] - a[1];
+      const angle = (Math.atan2(dLng, dLat) * 180) / Math.PI;
+      const mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+      out.push({ id: `${i}-${a[0]}-${a[1]}`, mid, angle });
+    }
+    return out;
+  }, [displayRoute]);
+
   const dStatus = deliveryTrack?.status;
-  const showMap = deliveryTrack && dStatus && !['CANCELLED', 'FAILED'].includes(dStatus);
+  const showMap = deliveryTrack && dStatus && !['DELIVERED', 'CANCELLED', 'FAILED'].includes(dStatus);
+  const locationFreshnessLabel =
+    driverLastUpdatedAt == null
+      ? 'No recent update'
+      : driverUpdatedAgoSec <= 35
+      ? 'Live'
+      : driverUpdatedAgoSec <= 90
+      ? 'Delayed'
+      : 'No recent update';
+  const locationFreshnessClass =
+    locationFreshnessLabel === 'Live'
+      ? 'bg-emerald-100 text-emerald-700'
+      : locationFreshnessLabel === 'Delayed'
+      ? 'bg-amber-100 text-amber-700'
+      : 'bg-gray-200 text-gray-700';
 
   if (loading || authLoading) {
     return (
@@ -260,9 +370,14 @@ export default function OrderTrackPage() {
         <div className="card p-0 overflow-hidden mb-8 shadow-lg border-0 ring-1 ring-gray-100">
           <div className="px-4 py-3 bg-gray-900 text-white flex justify-between items-center">
             <span className="text-sm font-semibold">Live map</span>
-            {driverLoc?.latitude != null && (
-              <span className="text-xs text-emerald-300">Driver location updating</span>
-            )}
+            <div className="flex items-center gap-2">
+              <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold ${locationFreshnessClass}`}>
+                {locationFreshnessLabel}
+              </span>
+              {driverLoc?.latitude != null && driverLastUpdatedAt && (
+                <span className="text-xs text-emerald-300">Last updated: {driverUpdatedAgoSec}s ago</span>
+              )}
+            </div>
           </div>
           <MapContainer
             center={mapCenter}
@@ -271,20 +386,52 @@ export default function OrderTrackPage() {
             scrollWheelZoom
           >
             <RecenterMap center={mapCenter} />
+            <FitMapToBounds points={mapPoints} />
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
-            {routeLine.length > 1 && (
-              <Polyline positions={routeLine} pathOptions={{ color: '#2563eb', weight: 5, opacity: 0.85 }} />
+            {displayRoute.length > 1 && (
+              <>
+                <Polyline positions={displayRoute} pathOptions={{ color: '#111827', weight: 7, opacity: 0.9 }} />
+                <Polyline positions={displayRoute} pathOptions={{ color: '#facc15', weight: 3, opacity: 0.95 }} />
+              </>
             )}
+            {routeArrows.map((arrow) => (
+              <Marker
+                key={arrow.id}
+                position={arrow.mid}
+                icon={L.divIcon({
+                  className: 'route-arrow-marker',
+                  html: `<div style="transform: rotate(${arrow.angle}deg); color:#111827; font-size:14px; font-weight:700;">➤</div>`,
+                  iconSize: [14, 14],
+                  iconAnchor: [7, 7],
+                })}
+              />
+            ))}
             {pickup?.latitude != null && pickup?.longitude != null && (
-              <Marker position={[pickup.latitude, pickup.longitude]}>
-                <Popup>Pickup — restaurant</Popup>
+              <Marker
+                position={[pickup.latitude, pickup.longitude]}
+                icon={L.divIcon({
+                  className: 'pickup-marker',
+                  html: '<div style="width:18px;height:18px;background:#facc15;border:3px solid #fff;border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,.35);"></div>',
+                  iconSize: [18, 18],
+                  iconAnchor: [9, 9],
+                })}
+              >
+                <Popup>Restaurant pickup point</Popup>
               </Marker>
             )}
             {dropoff?.latitude != null && dropoff?.longitude != null && (
-              <Marker position={[dropoff.latitude, dropoff.longitude]}>
+              <Marker
+                position={[dropoff.latitude, dropoff.longitude]}
+                icon={L.divIcon({
+                  className: 'dropoff-marker',
+                  html: '<div style="width:18px;height:18px;background:#facc15;border:3px solid #fff;border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,.35);"></div>',
+                  iconSize: [18, 18],
+                  iconAnchor: [9, 9],
+                })}
+              >
                 <Popup>Your address</Popup>
               </Marker>
             )}
@@ -293,17 +440,34 @@ export default function OrderTrackPage() {
                 position={[driverLoc.latitude, driverLoc.longitude]}
                 icon={L.divIcon({
                   className: 'driver-pulse',
-                  html: '<div style="width:18px;height:18px;background:#10b981;border:3px solid #fff;border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,.35);"></div>',
-                  iconSize: [18, 18],
-                  iconAnchor: [9, 9],
+                  html: '<div class="driver-animated-dot"></div>',
+                  iconSize: [24, 24],
+                  iconAnchor: [12, 12],
                 })}
               >
                 <Popup>Your driver</Popup>
               </Marker>
             )}
           </MapContainer>
+          <div className="px-4 py-2 bg-white border-t flex flex-wrap gap-2 text-xs text-gray-700">
+            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-100"><span className="w-2 h-2 rounded-full bg-emerald-500" />Driver</span>
+            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-100"><span className="w-2 h-2 rounded-full bg-amber-400" />Pickup</span>
+            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-100"><span className="w-2 h-2 rounded-full bg-amber-400" />Destination</span>
+            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-100"><span className="text-[10px]">➤</span>Direction</span>
+          </div>
         </div>
       )}
+      <style>{`
+        .driver-animated-dot{
+          width:18px;height:18px;background:#10b981;border:3px solid #fff;border-radius:9999px;
+          box-shadow:0 2px 8px rgba(0,0,0,.35);position:relative;
+        }
+        .driver-animated-dot::after{
+          content:'';position:absolute;inset:-6px;border:2px solid rgba(16,185,129,.45);border-radius:9999px;
+          animation: driverPulse 1.6s ease-out infinite;
+        }
+        @keyframes driverPulse {0%{transform:scale(.8);opacity:.9}100%{transform:scale(1.45);opacity:0}}
+      `}</style>
 
       <div className="card p-6 space-y-4">
         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Order status</p>
@@ -348,6 +512,72 @@ export default function OrderTrackPage() {
           >
             Report a delay
           </button>
+        </div>
+      )}
+
+      {user?.role === 'customer' && dStatus === 'DELIVERED' && deliveryTrack?.driver && (
+        <div className="mt-6">
+          <button
+            type="button"
+            className="btn-secondary py-2 px-4 text-sm"
+            onClick={() => setShowRateDriver(true)}
+            disabled={deliveryTrack?.rating != null}
+          >
+            {deliveryTrack?.rating != null ? 'Driver already rated' : 'Rate delivery driver'}
+          </button>
+        </div>
+      )}
+
+      {showRateDriver && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setShowRateDriver(false)}>
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-gray-900 mb-3">Rate your delivery driver</h3>
+            <div className="flex gap-1 mb-4">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  type="button"
+                  onClick={() => setDriverRating(star)}
+                  className={`text-2xl ${driverRating >= star ? 'text-amber-500' : 'text-gray-300'}`}
+                >
+                  ★
+                </button>
+              ))}
+            </div>
+            <textarea
+              value={driverFeedback}
+              onChange={(e) => setDriverFeedback(e.target.value)}
+              className="input-field min-h-[100px] mb-4"
+              maxLength={400}
+              placeholder="Share feedback about delivery experience..."
+            />
+            <div className="flex gap-2 justify-end">
+              <button type="button" className="btn-secondary" onClick={() => setShowRateDriver(false)}>Cancel</button>
+              <button
+                type="button"
+                className="btn-primary"
+                disabled={ratingSubmitting}
+                onClick={async () => {
+                  try {
+                    setRatingSubmitting(true);
+                    const delivery = await api.getDeliveryByOrderId(orderId);
+                    await api.rateDelivery(delivery._id || delivery.id, {
+                      rating: driverRating,
+                      feedback: driverFeedback,
+                    });
+                    await loadDeliveryTrack();
+                    setShowRateDriver(false);
+                  } catch (e) {
+                    alert(e.message || 'Failed to submit rating');
+                  } finally {
+                    setRatingSubmitting(false);
+                  }
+                }}
+              >
+                {ratingSubmitting ? 'Submitting...' : 'Submit'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

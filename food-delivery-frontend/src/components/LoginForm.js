@@ -44,6 +44,11 @@ const LoginSignup = ({ onSuccess }) => {
       if (isLogin) {
         const result = await login(email, password);
         if (result.success) {
+          if (result.firstTimeLoginMessage) {
+            sessionStorage.setItem('postFirstRoleLoginMessage', result.firstTimeLoginMessage);
+          } else {
+            sessionStorage.setItem('postLoginMessage', 'Successfully logged in.');
+          }
           if (onSuccess) onSuccess();
         } else {
           setError(result.message || 'Invalid email or password');
@@ -67,6 +72,8 @@ const LoginSignup = ({ onSuccess }) => {
         const result = await registerWithOTP('verify', payload);
         if (result.success) {
           if (!result.requiresApproval && onSuccess) {
+            const welcomeMessage = result.welcomeMessage || 'Congratulations! Registration successful. You can now enjoy delicious food on Feedo.';
+            sessionStorage.setItem('postRegisterWelcomeMessage', welcomeMessage);
             onSuccess();
             return;
           }
@@ -80,6 +87,8 @@ const LoginSignup = ({ onSuccess }) => {
         const result = await register(fullName, email, password, contactNumber, role, restaurantInfo, driverInfo);
         if (result.success) {
           if (!result.requiresApproval && onSuccess) {
+            const welcomeMessage = result.welcomeMessage || 'Congratulations! Registration successful. You can now enjoy delicious food on Feedo.';
+            sessionStorage.setItem('postRegisterWelcomeMessage', welcomeMessage);
             onSuccess();
             return;
           }

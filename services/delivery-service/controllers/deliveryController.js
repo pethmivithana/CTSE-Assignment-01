@@ -220,28 +220,31 @@ exports.trackDelivery = async (req, res) => {
             status: delivery.status,
             statusHistory: delivery.statusHistory,
             estimatedDeliveryTime: delivery.estimatedDeliveryTime,
-            distance: delivery.distance
+            distance: delivery.distance,
+            rating: delivery.rating,
+            feedback: delivery.feedback || '',
         };
 
         // Add driver info if assigned
+        const hideLiveTracking = ['DELIVERED', 'CANCELLED', 'FAILED'].includes(delivery.status);
         if (delivery.driverId) {
             trackingInfo.driver = {
                 name: delivery.driverId.name,
                 phone: delivery.driverId.phone,
                 rating: delivery.driverId.rating,
                 vehicleDetails: delivery.driverId.vehicleDetails,
-                currentLocation: delivery.driverId.currentLocation
+                ...(hideLiveTracking ? {} : { currentLocation: delivery.driverId.currentLocation }),
             };
         }
-        if (delivery.driverLocationHistory && delivery.driverLocationHistory.length > 0) {
+        if (!hideLiveTracking && delivery.driverLocationHistory && delivery.driverLocationHistory.length > 0) {
             trackingInfo.driverLocationHistory = delivery.driverLocationHistory;
         }
 
         trackingInfo.pickupLocation = delivery.pickupLocation;
         trackingInfo.dropoffLocation = delivery.dropoffLocation;
-        trackingInfo.routeGeometry = delivery.routeGeometry || null;
-        trackingInfo.routeDurationMinutes = delivery.routeDurationMinutes;
-        trackingInfo.currentEta = delivery.currentEta;
+        trackingInfo.routeGeometry = hideLiveTracking ? null : (delivery.routeGeometry || null);
+        trackingInfo.routeDurationMinutes = hideLiveTracking ? null : delivery.routeDurationMinutes;
+        trackingInfo.currentEta = hideLiveTracking ? null : delivery.currentEta;
         trackingInfo.exceptionType = delivery.exceptionType || null;
         trackingInfo.exceptionDetails = delivery.exceptionDetails || null;
         if (delivery.deliveryOtp && ['ON_THE_WAY'].includes(delivery.status)) {
@@ -289,19 +292,27 @@ exports.trackDeliveryForCustomer = async (req, res) => {
             pickupLocation: delivery.pickupLocation,
             dropoffLocation: delivery.dropoffLocation,
             podVerifiedAt: delivery.podVerifiedAt,
+            rating: delivery.rating,
+            feedback: delivery.feedback || '',
         };
 
+        const hideLiveTracking = ['DELIVERED', 'CANCELLED', 'FAILED'].includes(delivery.status);
         if (delivery.driverId) {
             trackingInfo.driver = {
                 name: delivery.driverId.name,
                 phone: delivery.driverId.phone,
                 rating: delivery.driverId.rating,
                 vehicleDetails: delivery.driverId.vehicleDetails,
-                currentLocation: delivery.driverId.currentLocation,
+                ...(hideLiveTracking ? {} : { currentLocation: delivery.driverId.currentLocation }),
             };
         }
-        if (delivery.driverLocationHistory?.length) {
+        if (!hideLiveTracking && delivery.driverLocationHistory?.length) {
             trackingInfo.driverLocationHistory = delivery.driverLocationHistory;
+        }
+        if (hideLiveTracking) {
+            trackingInfo.routeGeometry = null;
+            trackingInfo.routeDurationMinutes = null;
+            trackingInfo.currentEta = null;
         }
         if (delivery.status === 'ON_THE_WAY' && delivery.deliveryOtp) {
             trackingInfo.deliveryOtp = delivery.deliveryOtp;
@@ -589,20 +600,26 @@ exports.rateDelivery = async (req, res) => {
         if (delivery.status !== 'DELIVERED') {
             return res.status(400).json({ error: 'Can only rate completed deliveries' });
         }
+        if (delivery.rating != null) {
+            return res.status(409).json({ error: 'Driver already rated for this delivery' });
+        }
 
         // Update delivery rating
         delivery.rating = rating;
         delivery.feedback = feedback || '';
         await delivery.save();
 
-        // Update driver rating
+        // Update driver rating using aggregate over delivered rated deliveries
         if (delivery.driverId) {
             const driver = await Driver.findById(delivery.driverId);
             if (driver) {
-                // Calculate new average rating
-                const totalRatings = driver.totalDeliveries;
-                const currentTotalPoints = driver.rating * totalRatings;
-                driver.rating = (currentTotalPoints + rating) / (totalRatings + 1);
+                const ratedDeliveries = await Delivery.find({
+                    driverId: delivery.driverId,
+                    status: 'DELIVERED',
+                    rating: { $ne: null },
+                }).select('rating');
+                const total = ratedDeliveries.reduce((sum, d) => sum + Number(d.rating || 0), 0);
+                driver.rating = ratedDeliveries.length ? Number((total / ratedDeliveries.length).toFixed(2)) : 0;
                 await driver.save();
             }
         }
@@ -617,5 +634,41 @@ exports.rateDelivery = async (req, res) => {
     } catch (err) {
         logger.error(`Error rating delivery: ${err.message}`);
         return res.status(500).json({ error: 'Failed to rate delivery' });
+    }
+};
+
+// Admin: consolidated driver feedback
+exports.getAdminDriverFeedback = async (req, res) => {
+    try {
+        const deliveries = await Delivery.find({
+            status: 'DELIVERED',
+            rating: { $ne: null },
+        }).populate('driverId', 'name email rating totalDeliveries');
+
+        const items = deliveries
+            .map((d) => ({
+                deliveryId: d._id,
+                orderId: d.orderId,
+                driverId: d.driverId?._id || null,
+                driverName: d.driverId?.name || 'Driver',
+                driverEmail: d.driverId?.email || '',
+                rating: d.rating,
+                feedback: d.feedback || '',
+                createdAt: d.updatedAt || d.createdAt,
+            }))
+            .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+
+        return res.status(200).json({
+            items,
+            summary: {
+                totalRatings: items.length,
+                averageRating: items.length
+                    ? Number((items.reduce((s, i) => s + Number(i.rating || 0), 0) / items.length).toFixed(2))
+                    : 0,
+            },
+        });
+    } catch (err) {
+        logger.error(`Error fetching admin driver feedback: ${err.message}`);
+        return res.status(500).json({ error: 'Failed to fetch driver feedback' });
     }
 };

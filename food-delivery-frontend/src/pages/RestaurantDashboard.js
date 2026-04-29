@@ -14,8 +14,10 @@ const RestaurantDashboard = () => {
   const [analytics, setAnalytics] = useState(null);
   const [categories, setCategories] = useState([]);
   const [menuItems, setMenuItems] = useState([]);
+  const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [firstLoginNotice, setFirstLoginNotice] = useState('');
 
   useEffect(() => {
     if (user && user.role === 'restaurantManager') {
@@ -32,16 +34,18 @@ const RestaurantDashboard = () => {
       const rest = await api.getMyRestaurant();
       setRestaurant(rest);
       if (rest) {
-        const [ordersRes, analyticsRes, categoriesRes, itemsRes] = await Promise.all([
+        const [ordersRes, analyticsRes, categoriesRes, itemsRes, reviewsRes] = await Promise.all([
           api.getRestaurantOrders().catch(() => []),
           api.getMyRestaurantAnalytics().catch(() => null),
           api.getCategories(rest._id).catch(() => []),
           api.getMenuItems({ restaurantId: rest._id }).catch(() => []),
+          api.getRestaurantReviews(rest._id).catch(() => []),
         ]);
         setOrders(Array.isArray(ordersRes) ? ordersRes : ordersRes?.data || []);
         setAnalytics(analyticsRes);
         setCategories(Array.isArray(categoriesRes) ? categoriesRes : categoriesRes?.data || []);
         setMenuItems(Array.isArray(itemsRes) ? itemsRes : itemsRes?.data || []);
+        setReviews(Array.isArray(reviewsRes) ? reviewsRes : reviewsRes?.items || []);
       }
     } catch (err) {
       setError(err.message || 'Failed to load data');
@@ -59,6 +63,14 @@ const RestaurantDashboard = () => {
     }, activeTab === 'orders' ? 7000 : 15000);
     return () => clearInterval(id);
   }, [user, activeTab]);
+
+  useEffect(() => {
+    if (!user || user.role !== 'restaurantManager') return;
+    const msg = sessionStorage.getItem('postFirstRoleLoginMessage');
+    if (!msg) return;
+    setFirstLoginNotice(msg);
+    sessionStorage.removeItem('postFirstRoleLoginMessage');
+  }, [user]);
 
   const handleCreateRestaurant = async () => {
     setLoading(true);
@@ -104,6 +116,13 @@ const RestaurantDashboard = () => {
             <OpenCloseToggle restaurant={restaurant} onUpdate={loadData} />
           )}
         </div>
+
+        {firstLoginNotice && (
+          <div className="mb-6 p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 flex items-start justify-between gap-3">
+            <p className="text-sm">{firstLoginNotice}</p>
+            <button type="button" className="text-emerald-700 hover:text-emerald-900" onClick={() => setFirstLoginNotice('')}>×</button>
+          </div>
+        )}
 
         {error && (
           <div className="mb-6 p-5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 flex flex-wrap items-start justify-between gap-4">
@@ -156,7 +175,7 @@ const RestaurantDashboard = () => {
         ) : activeTab === 'menu' ? (
           <MenuTab restaurant={restaurant} categories={categories} menuItems={menuItems} onUpdate={loadData} />
         ) : (
-          <AnalyticsTab analytics={analytics} />
+          <AnalyticsTab analytics={analytics} reviews={reviews} />
         )}
       </div>
     </div>
@@ -939,7 +958,7 @@ function MenuTab({ restaurant, categories, menuItems, onUpdate }) {
   );
 }
 
-function AnalyticsTab({ analytics }) {
+function AnalyticsTab({ analytics, reviews }) {
   if (!analytics) return <div className="card p-12 text-center text-gray-500">No analytics data yet</div>;
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -970,6 +989,26 @@ function AnalyticsTab({ analytics }) {
           ))}
         </ul>
         {(!analytics.popularItems || analytics.popularItems.length === 0) && <p className="text-gray-500">No data yet</p>}
+      </div>
+      <div className="card p-6 col-span-full">
+        <h3 className="font-semibold mb-4">Recent Customer Reviews</h3>
+        {reviews?.length ? (
+          <div className="space-y-3">
+            {reviews.slice(0, 8).map((r) => (
+              <div key={r._id} className="rounded-lg border border-gray-100 p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-medium text-gray-800">{r.customerName || 'Customer'}</span>
+                  <span className="text-sm text-amber-600">
+                    {'★'.repeat(Math.round(r.rating || 0))}{'☆'.repeat(5 - Math.round(r.rating || 0))} ({r.rating || 0})
+                  </span>
+                </div>
+                {r.comment ? <p className="text-sm text-gray-600 mt-1">{r.comment}</p> : null}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-gray-500">No reviews yet</p>
+        )}
       </div>
     </div>
   );

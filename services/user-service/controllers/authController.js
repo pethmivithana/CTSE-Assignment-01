@@ -313,6 +313,11 @@ exports.login = async (req, res) => {
 
     user.loginAttempts = 0;
     user.lockUntil = undefined;
+    const isPrivilegedRole = user.role === "restaurantManager" || user.role === "deliveryPerson";
+    const isFirstPrivilegedLogin = isPrivilegedRole && !user.firstLoginCompleted;
+    if (isFirstPrivilegedLogin) {
+      user.firstLoginCompleted = true;
+    }
 
     const accessToken = jwt.sign(
       { id: user._id, role: user.role },
@@ -347,6 +352,14 @@ exports.login = async (req, res) => {
       refreshToken,
       expiresIn: 900,
       user: userData,
+      ...(isFirstPrivilegedLogin
+        ? {
+            firstTimeLoginMessage:
+              user.role === "restaurantManager"
+                ? `Welcome ${user.fullName || "Restaurant Manager"}! Your account is now active. You can start managing your restaurant.`
+                : `Welcome ${user.fullName || "Delivery Partner"}! Your account is now active. You can start accepting deliveries.`,
+          }
+        : {}),
     });
   } catch (error) {
     res.status(500).json({ message: error.message });

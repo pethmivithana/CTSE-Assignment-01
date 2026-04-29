@@ -2,6 +2,34 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+
+import iconRetina from 'leaflet/dist/images/marker-icon-2x.png';
+import iconUrl from 'leaflet/dist/images/marker-icon.png';
+import shadowUrl from 'leaflet/dist/images/marker-shadow.png';
+
+const DefaultIcon = L.icon({
+  iconRetinaUrl: iconRetina,
+  iconUrl,
+  shadowUrl,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41],
+});
+L.Marker.mergeOptions({ icon: DefaultIcon });
+
+function FitMapToBounds({ points }) {
+  const map = useMap();
+  useEffect(() => {
+    const valid = (points || []).filter((p) => Array.isArray(p) && p[0] != null && p[1] != null);
+    if (valid.length < 2) return;
+    map.fitBounds(valid, { padding: [36, 36], maxZoom: 15 });
+  }, [map, points]);
+  return null;
+}
 
 const DeliveryDashboard = () => {
   const { user, loading: authLoading } = useAuth();
@@ -17,6 +45,12 @@ const DeliveryDashboard = () => {
   const [podOtp, setPodOtp] = useState('');
   const [podPhoto, setPodPhoto] = useState(null);
   const [geoActive, setGeoActive] = useState(false);
+  const [firstLoginNotice, setFirstLoginNotice] = useState('');
+  const [displayedDriverLoc, setDisplayedDriverLoc] = useState(null);
+  const [driverLastUpdatedAt, setDriverLastUpdatedAt] = useState(null);
+  const [driverUpdatedAgoSec, setDriverUpdatedAgoSec] = useState(0);
+  const currentDriverLat = driver?.driver?.currentLocation?.latitude;
+  const currentDriverLng = driver?.driver?.currentLocation?.longitude;
 
   const loadData = async (trySync = true, { silent = false } = {}) => {
     if (!user) return;
@@ -55,9 +89,53 @@ const DeliveryDashboard = () => {
     if (!user || user.role !== 'deliveryPerson') return undefined;
     const id = setInterval(() => {
       loadData(false, { silent: true }).catch(() => {});
-    }, 6000);
+    }, 30000);
     return () => clearInterval(id);
   }, [user]);
+
+  useEffect(() => {
+    if (!user || user.role !== 'deliveryPerson') return;
+    const msg = sessionStorage.getItem('postFirstRoleLoginMessage');
+    if (!msg) return;
+    setFirstLoginNotice(msg);
+    sessionStorage.removeItem('postFirstRoleLoginMessage');
+  }, [user]);
+
+  useEffect(() => {
+    if (currentDriverLat == null || currentDriverLng == null) return;
+    setDriverLastUpdatedAt(new Date());
+    setDisplayedDriverLoc((prev) => {
+      if (!prev || prev.latitude == null || prev.longitude == null) {
+        return { latitude: currentDriverLat, longitude: currentDriverLng };
+      }
+      const startAt = Date.now();
+      const duration = 1200;
+      const fromLat = prev.latitude;
+      const fromLng = prev.longitude;
+      const toLat = currentDriverLat;
+      const toLng = currentDriverLng;
+      const step = () => {
+        const t = Math.min((Date.now() - startAt) / duration, 1);
+        const eased = 1 - (1 - t) * (1 - t);
+        setDisplayedDriverLoc({
+          latitude: fromLat + (toLat - fromLat) * eased,
+          longitude: fromLng + (toLng - fromLng) * eased,
+        });
+        if (t < 1) setTimeout(step, 16);
+      };
+      step();
+      return prev;
+    });
+  }, [currentDriverLat, currentDriverLng]);
+
+  useEffect(() => {
+    if (!driverLastUpdatedAt) return undefined;
+    setDriverUpdatedAgoSec(0);
+    const id = setInterval(() => {
+      setDriverUpdatedAgoSec(Math.max(0, Math.floor((Date.now() - new Date(driverLastUpdatedAt).getTime()) / 1000)));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [driverLastUpdatedAt]);
 
   /** Share live location while on an active delivery */
   useEffect(() => {
@@ -171,6 +249,20 @@ const DeliveryDashboard = () => {
   ];
 
   const d = driver?.driver;
+  const locationFreshnessLabel =
+    driverLastUpdatedAt == null
+      ? 'No recent update'
+      : driverUpdatedAgoSec <= 35
+      ? 'Live'
+      : driverUpdatedAgoSec <= 90
+      ? 'Delayed'
+      : 'No recent update';
+  const locationFreshnessClass =
+    locationFreshnessLabel === 'Live'
+      ? 'bg-emerald-100 text-emerald-700'
+      : locationFreshnessLabel === 'Delayed'
+      ? 'bg-amber-100 text-amber-700'
+      : 'bg-gray-200 text-gray-700';
 
   return (
     <div className="dashboard-shell">
@@ -195,6 +287,13 @@ const DeliveryDashboard = () => {
             </div>
           )}
         </div>
+
+        {firstLoginNotice && (
+          <div className="mb-6 p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 flex items-start justify-between gap-3">
+            <span className="text-sm">{firstLoginNotice}</span>
+            <button type="button" className="text-emerald-700 hover:text-emerald-900" onClick={() => setFirstLoginNotice('')}>×</button>
+          </div>
+        )}
 
         {error && (
           <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-800 flex justify-between items-center">
@@ -238,6 +337,137 @@ const DeliveryDashboard = () => {
                       <p><span className="font-medium">Dropoff:</span> {myDeliveries.currentDelivery.dropoffLocation?.address}</p>
                       <p><span className="font-medium">Distance:</span> {myDeliveries.currentDelivery.distance?.toFixed(1)} km</p>
                       <p><span className="font-medium">Status:</span> {myDeliveries.currentDelivery.status}</p>
+                      {(() => {
+                        const cur = myDeliveries.currentDelivery;
+                        const pickupPos =
+                          cur?.pickupLocation?.latitude != null && cur?.pickupLocation?.longitude != null
+                            ? [cur.pickupLocation.latitude, cur.pickupLocation.longitude]
+                            : null;
+                        const dropoffPos =
+                          cur?.dropoffLocation?.latitude != null && cur?.dropoffLocation?.longitude != null
+                            ? [cur.dropoffLocation.latitude, cur.dropoffLocation.longitude]
+                            : null;
+                        const driverPos =
+                          displayedDriverLoc?.latitude != null && displayedDriverLoc?.longitude != null
+                            ? [displayedDriverLoc.latitude, displayedDriverLoc.longitude]
+                            : null;
+                        const routeLine =
+                          cur?.routeGeometry?.type === 'LineString' && Array.isArray(cur.routeGeometry.coordinates)
+                            ? cur.routeGeometry.coordinates.map(([lng, lat]) => [lat, lng])
+                            : [];
+                        const displayRoute =
+                          routeLine.length > 1
+                            ? routeLine
+                            : driverPos && pickupPos && dropoffPos
+                            ? [driverPos, pickupPos, dropoffPos]
+                            : pickupPos && dropoffPos
+                            ? [pickupPos, dropoffPos]
+                            : driverPos && dropoffPos
+                            ? [driverPos, dropoffPos]
+                            : [];
+                        const routeArrows =
+                          displayRoute.length > 1
+                            ? displayRoute.slice(0, -1).map((a, i) => {
+                                const b = displayRoute[i + 1];
+                                const dLat = b[0] - a[0];
+                                const dLng = b[1] - a[1];
+                                const angle = (Math.atan2(dLng, dLat) * 180) / Math.PI;
+                                return {
+                                  id: `${i}-${a[0]}-${a[1]}`,
+                                  mid: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2],
+                                  angle,
+                                };
+                              })
+                            : [];
+                        const points = [driverPos, pickupPos, dropoffPos].filter(Boolean);
+                        const center = driverPos || pickupPos || dropoffPos || [6.9271, 79.8612];
+                        if (!pickupPos && !dropoffPos) return null;
+                        return (
+                          <div className="mt-2 rounded-xl overflow-hidden border border-gray-200">
+                            <div className="px-3 py-2 bg-slate-900 text-white text-xs font-semibold flex items-center justify-between">
+                              <span>Live delivery map</span>
+                              <div className="flex items-center gap-2">
+                                <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold ${locationFreshnessClass}`}>
+                                  {locationFreshnessLabel}
+                                </span>
+                                <span className="text-emerald-300">
+                                  {driverLastUpdatedAt ? `Last updated: ${driverUpdatedAgoSec}s ago` : 'Refreshes every 30s'}
+                                </span>
+                              </div>
+                            </div>
+                            <MapContainer center={center} zoom={13} className="h-72 w-full z-0" scrollWheelZoom>
+                              <TileLayer
+                                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                              />
+                              <FitMapToBounds points={points} />
+                              {displayRoute.length > 1 && (
+                                <>
+                                  <Polyline positions={displayRoute} pathOptions={{ color: '#111827', weight: 7, opacity: 0.9 }} />
+                                  <Polyline positions={displayRoute} pathOptions={{ color: '#facc15', weight: 3, opacity: 0.95 }} />
+                                </>
+                              )}
+                              {routeArrows.map((arrow) => (
+                                <Marker
+                                  key={arrow.id}
+                                  position={arrow.mid}
+                                  icon={L.divIcon({
+                                    className: 'route-arrow-marker',
+                                    html: `<div style="transform: rotate(${arrow.angle}deg); color:#111827; font-size:14px; font-weight:700;">➤</div>`,
+                                    iconSize: [14, 14],
+                                    iconAnchor: [7, 7],
+                                  })}
+                                />
+                              ))}
+                              {pickupPos && (
+                                <Marker
+                                  position={pickupPos}
+                                  icon={L.divIcon({
+                                    className: 'pickup-marker',
+                                    html: '<div style="width:18px;height:18px;background:#facc15;border:3px solid #fff;border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,.35);"></div>',
+                                    iconSize: [18, 18],
+                                    iconAnchor: [9, 9],
+                                  })}
+                                >
+                                  <Popup>Restaurant pickup point</Popup>
+                                </Marker>
+                              )}
+                              {dropoffPos && (
+                                <Marker
+                                  position={dropoffPos}
+                                  icon={L.divIcon({
+                                    className: 'dropoff-marker',
+                                    html: '<div style="width:18px;height:18px;background:#facc15;border:3px solid #fff;border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,.35);"></div>',
+                                    iconSize: [18, 18],
+                                    iconAnchor: [9, 9],
+                                  })}
+                                >
+                                  <Popup>Customer destination</Popup>
+                                </Marker>
+                              )}
+                              {driverPos && (
+                                <Marker
+                                  position={driverPos}
+                                  icon={L.divIcon({
+                                    className: 'driver-marker',
+                                    html: '<div class="driver-animated-dot"></div>',
+                                    iconSize: [24, 24],
+                                    iconAnchor: [12, 12],
+                                  })}
+                                >
+                                  <Popup>Your current location</Popup>
+                                </Marker>
+                              )}
+                            </MapContainer>
+                            <div className="px-3 py-2 bg-white border-t flex flex-wrap gap-2 text-xs text-gray-700">
+                              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-100"><span className="w-2 h-2 rounded-full bg-emerald-500" />Driver</span>
+                              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-100"><span className="w-2 h-2 rounded-full bg-amber-400" />Pickup</span>
+                              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-100"><span className="w-2 h-2 rounded-full bg-amber-400" />Destination</span>
+                              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-100"><span className="text-[10px]">➤</span>Direction</span>
+                            </div>
+                          </div>
+                        );
+                      })()}
                       <div className="flex gap-2 flex-wrap">
                         {myDeliveries.currentDelivery.status === 'DRIVER_ASSIGNED' && (
                           <button onClick={() => handleUpdateStatus(myDeliveries.currentDelivery._id, 'PICKED_UP')} disabled={updating} className="px-4 py-2 rounded-lg bg-blue-500 text-white text-sm font-medium">Picked Up</button>
@@ -308,9 +538,17 @@ const DeliveryDashboard = () => {
                     <h2 className="text-lg font-semibold px-6 py-4 bg-gray-50 border-b">Recent Completed</h2>
                     <div className="divide-y max-h-64 overflow-y-auto">
                       {myDeliveries.completedDeliveries.slice(0, 10).map((del) => (
-                        <div key={del._id} className="px-6 py-3 flex justify-between items-center">
-                          <span>Order #{del.orderId?.slice(-6)}</span>
-                          <span className="text-sm text-gray-500">{new Date(del.updatedAt).toLocaleDateString()}</span>
+                        <div key={del._id} className="px-6 py-3">
+                          <div className="flex justify-between items-center">
+                            <span>Order #{del.orderId?.slice(-6)}</span>
+                            <span className="text-sm text-gray-500">{new Date(del.updatedAt).toLocaleDateString()}</span>
+                          </div>
+                          {del.rating != null && (
+                            <p className="text-sm text-amber-600 mt-1">
+                              {'★'.repeat(Math.round(del.rating))}{'☆'.repeat(5 - Math.round(del.rating))} ({del.rating}/5)
+                            </p>
+                          )}
+                          {del.feedback && <p className="text-sm text-gray-600 mt-1">{del.feedback}</p>}
                         </div>
                       ))}
                     </div>
@@ -395,6 +633,17 @@ const DeliveryDashboard = () => {
           </div>
         </div>
       )}
+      <style>{`
+        .driver-animated-dot{
+          width:18px;height:18px;background:#10b981;border:3px solid #fff;border-radius:9999px;
+          box-shadow:0 2px 8px rgba(0,0,0,.35);position:relative;
+        }
+        .driver-animated-dot::after{
+          content:'';position:absolute;inset:-6px;border:2px solid rgba(16,185,129,.45);border-radius:9999px;
+          animation: driverPulse 1.6s ease-out infinite;
+        }
+        @keyframes driverPulse {0%{transform:scale(.8);opacity:.9}100%{transform:scale(1.45);opacity:0}}
+      `}</style>
     </div>
   );
 };

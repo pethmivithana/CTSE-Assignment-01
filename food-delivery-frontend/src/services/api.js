@@ -26,6 +26,12 @@ export const api = {
     if (!res.ok) throw new Error('Failed to fetch reviews');
     return res.json();
   },
+  getAdminRestaurantReviews: async () => {
+    const res = await fetch(`${API_URL}/api/restaurants/admin/reviews`, { headers: getAuthHeaders() });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Failed to fetch restaurant feedback');
+    return data;
+  },
   createReview: async (restaurantId, { rating, comment, orderId }) => {
     const res = await fetch(`${API_URL}/api/restaurants/${restaurantId}/reviews`, {
       method: 'POST',
@@ -496,6 +502,28 @@ export const api = {
     const res = await fetch(`${API_URL}/api/delivery/deliveries/history?page=${page}&limit=${limit}`, { headers: getAuthHeaders() });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || 'Failed to fetch delivery history');
+    return data;
+  },
+  getDeliveryByOrderId: async (orderId) => {
+    const res = await fetch(`${API_URL}/api/delivery/deliveries/order/${orderId}`, { headers: getAuthHeaders() });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Failed to fetch delivery');
+    return data.delivery || data;
+  },
+  rateDelivery: async (deliveryId, payload) => {
+    const res = await fetch(`${API_URL}/api/delivery/deliveries/${deliveryId}/rate`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Failed to rate delivery');
+    return data;
+  },
+  getAdminDriverFeedback: async () => {
+    const res = await fetch(`${API_URL}/api/delivery/admin/feedback`, { headers: getAuthHeaders() });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Failed to fetch driver feedback');
     return data;
   },
 

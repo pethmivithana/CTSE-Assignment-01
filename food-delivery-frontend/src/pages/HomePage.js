@@ -4,6 +4,7 @@ import { api } from '../services/api';
 
 const HomePage = () => {
   const [restaurantCount, setRestaurantCount] = useState(null);
+  const [welcomeMessage, setWelcomeMessage] = useState('');
 
   useEffect(() => {
     api.getRestaurants()
@@ -12,6 +13,18 @@ const HomePage = () => {
         setRestaurantCount(list.length);
       })
       .catch(() => setRestaurantCount(0));
+  }, []);
+
+  useEffect(() => {
+    const msg = sessionStorage.getItem('postRegisterWelcomeMessage');
+    const loginMsg = sessionStorage.getItem('postLoginMessage');
+    const finalMsg = msg || loginMsg;
+    if (!finalMsg) return;
+    setWelcomeMessage(finalMsg);
+    sessionStorage.removeItem('postRegisterWelcomeMessage');
+    sessionStorage.removeItem('postLoginMessage');
+    const id = setTimeout(() => setWelcomeMessage(''), 6000);
+    return () => clearTimeout(id);
   }, []);
 
   const benefits = [
@@ -80,6 +93,24 @@ const HomePage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {welcomeMessage && (
+        <div className="fixed top-20 right-4 z-50 max-w-sm rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-900 shadow-lg">
+          <div className="flex items-start gap-3 p-4">
+            <svg className="w-5 h-5 mt-0.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+            </svg>
+            <div className="text-sm leading-relaxed">{welcomeMessage}</div>
+            <button
+              type="button"
+              onClick={() => setWelcomeMessage('')}
+              className="text-emerald-700 hover:text-emerald-900"
+              aria-label="Dismiss welcome message"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
       <section
         className="relative text-white overflow-hidden min-h-[70vh]"
         style={{

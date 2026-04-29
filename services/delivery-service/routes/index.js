@@ -56,6 +56,7 @@ router.post('/deliveries/:id/rate', validateRequest, deliveryController.rateDeli
 router.post('/admin/deliveries/:deliveryId/assign', authenticateToken, authorizeAdmin, validateRequest, deliveryController.adminAssignDelivery);
 router.get('/admin/drivers', authenticateToken, authorizeAdmin, driverController.getAllDrivers);
 router.get('/admin/deliveries', authenticateToken, authorizeAdmin, deliveryController.getAllDeliveries);
+router.get('/admin/feedback', authenticateToken, authorizeAdmin, deliveryController.getAdminDriverFeedback);
 router.get('/admin/analytics', authenticateToken, authorizeAdmin, analyticsController.getDashboard);
 
 router.get('/drivers/:id/history', deliveryHistoryController.getDriverHistory);

@@ -9,7 +9,7 @@ const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
 const AdminDashboard = () => {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const [tab, setTab] = useState('users'); // 'users' | 'coupons'
+  const [tab, setTab] = useState('users'); // 'users' | 'coupons' | 'feedback'
   const [users, setUsers] = useState([]);
   const [filter, setFilter] = useState('pending'); // 'pending' | 'all'
   /** 'all' | 'customer' | 'restaurantManager' | 'deliveryPerson' */
@@ -20,6 +20,8 @@ const AdminDashboard = () => {
   const [deleteModal, setDeleteModal] = useState(null);
   const [coupons, setCoupons] = useState([]);
   const [couponForm, setCouponForm] = useState({ code: '', discountType: 'PERCENTAGE', discountValue: 10, minOrderAmount: 0, validUntil: '', usageLimit: '' });
+  const [driverFeedback, setDriverFeedback] = useState({ items: [], summary: { totalRatings: 0, averageRating: 0 } });
+  const [restaurantFeedback, setRestaurantFeedback] = useState({ items: [], summary: { totalRatings: 0, averageRating: 0 } });
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -204,6 +206,19 @@ const AdminDashboard = () => {
     }
   };
 
+  const fetchFeedback = async () => {
+    try {
+      const [driverData, restaurantData] = await Promise.all([
+        api.getAdminDriverFeedback().catch(() => ({ items: [], summary: { totalRatings: 0, averageRating: 0 } })),
+        api.getAdminRestaurantReviews().catch(() => ({ items: [], summary: { totalRatings: 0, averageRating: 0 } })),
+      ]);
+      setDriverFeedback(driverData);
+      setRestaurantFeedback(restaurantData);
+    } catch (err) {
+      setError(err.message || 'Failed to load feedback');
+    }
+  };
+
   const createCoupon = async (e) => {
     e.preventDefault();
     if (!couponForm.code || !couponForm.validUntil) return;
@@ -232,8 +247,15 @@ const AdminDashboard = () => {
     if (user?.role === 'admin') {
       fetchUsers();
       fetchCoupons();
+      fetchFeedback();
     }
   }, [user, navigate]);
+
+  useEffect(() => {
+    if (user?.role === 'admin' && tab === 'feedback') {
+      fetchFeedback();
+    }
+  }, [tab, user]);
 
   const formatDate = (date) => {
     if (!date) return '—';
@@ -281,6 +303,16 @@ const AdminDashboard = () => {
             }`}
           >
             Coupons
+          </button>
+          <button
+            onClick={() => setTab('feedback')}
+            className={`px-4 py-2 rounded-xl font-medium transition-all ${
+              tab === 'feedback'
+                ? 'bg-primary-500 text-white shadow-md'
+                : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+            }`}
+          >
+            Feedback
           </button>
         </div>
 
@@ -395,6 +427,62 @@ const AdminDashboard = () => {
                 </table>
               </div>
               {coupons.length === 0 && <div className="py-12 text-center text-gray-500">No coupons yet</div>}
+            </div>
+          </div>
+        )}
+
+        {tab === 'feedback' && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <div className="card overflow-hidden">
+              <div className="p-4 border-b bg-gray-50">
+                <h2 className="font-semibold text-gray-800">Driver Ratings & Comments</h2>
+                <p className="text-xs text-gray-500 mt-1">
+                  {driverFeedback?.summary?.totalRatings || 0} ratings · Avg {driverFeedback?.summary?.averageRating || 0}/5
+                </p>
+              </div>
+              <div className="max-h-[420px] overflow-y-auto divide-y">
+                {(driverFeedback?.items || []).slice(0, 30).map((item) => (
+                  <div key={item.deliveryId} className="p-4">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-medium text-gray-800">{item.driverName}</p>
+                      <p className="text-amber-600 text-sm">
+                        {'★'.repeat(Math.round(item.rating || 0))}{'☆'.repeat(5 - Math.round(item.rating || 0))} ({item.rating || 0})
+                      </p>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-0.5">Order #{String(item.orderId || '').slice(-6)}</p>
+                    {item.feedback ? <p className="text-sm text-gray-600 mt-2">{item.feedback}</p> : null}
+                  </div>
+                ))}
+                {(!driverFeedback?.items || driverFeedback.items.length === 0) && (
+                  <div className="p-8 text-center text-gray-500 text-sm">No driver feedback yet.</div>
+                )}
+              </div>
+            </div>
+
+            <div className="card overflow-hidden">
+              <div className="p-4 border-b bg-gray-50">
+                <h2 className="font-semibold text-gray-800">Restaurant Ratings & Comments</h2>
+                <p className="text-xs text-gray-500 mt-1">
+                  {restaurantFeedback?.summary?.totalRatings || 0} ratings · Avg {restaurantFeedback?.summary?.averageRating || 0}/5
+                </p>
+              </div>
+              <div className="max-h-[420px] overflow-y-auto divide-y">
+                {(restaurantFeedback?.items || []).slice(0, 30).map((item) => (
+                  <div key={item._id} className="p-4">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-medium text-gray-800">{item.restaurantName}</p>
+                      <p className="text-amber-600 text-sm">
+                        {'★'.repeat(Math.round(item.rating || 0))}{'☆'.repeat(5 - Math.round(item.rating || 0))} ({item.rating || 0})
+                      </p>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-0.5">By {item.customerName || 'Customer'}</p>
+                    {item.comment ? <p className="text-sm text-gray-600 mt-2">{item.comment}</p> : null}
+                  </div>
+                ))}
+                {(!restaurantFeedback?.items || restaurantFeedback.items.length === 0) && (
+                  <div className="p-8 text-center text-gray-500 text-sm">No restaurant feedback yet.</div>
+                )}
+              </div>
             </div>
           </div>
         )}

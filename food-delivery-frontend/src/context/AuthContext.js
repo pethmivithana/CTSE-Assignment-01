@@ -86,7 +86,7 @@ export const AuthProvider = ({ children }) => {
       if (data.refreshToken) localStorage.setItem('foodAppRefreshToken', data.refreshToken);
       if (data.user) localStorage.setItem(USER_CACHE_KEY, JSON.stringify(data.user));
       setUser(data.user);
-      return { success: true };
+      return { success: true, firstTimeLoginMessage: data.firstTimeLoginMessage };
     } catch (error) {
       console.error('Login failed:', error);
       return { success: false, message: error.message || 'Login failed' };
@@ -206,6 +206,7 @@ export const AuthProvider = ({ children }) => {
         requiresApproval: false,
         message: 'Registration successful!',
         autoLoggedIn: true,
+        welcomeMessage: `Congratulations${fullName ? `, ${fullName}` : ''}! Registration successful. You can now enjoy delicious food on Feedo.`,
       };
     } catch (error) {
       console.error('Registration failed:', error);
@@ -287,8 +288,13 @@ export const AuthProvider = ({ children }) => {
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || 'Failed to verify');
         if (payload.role === 'customer') {
-          await loginAfterRegistration(payload.email, payload.password);
-          return { success: true, message: 'Account created successfully!', autoLoggedIn: true };
+          const loginData = await loginAfterRegistration(payload.email, payload.password);
+          return {
+            success: true,
+            message: 'Account created successfully!',
+            autoLoggedIn: true,
+            welcomeMessage: `Congratulations${loginData?.user?.fullName ? `, ${loginData.user.fullName}` : ''}! Registration successful. You can now enjoy delicious food on Feedo.`,
+          };
         }
         return {
           success: true,

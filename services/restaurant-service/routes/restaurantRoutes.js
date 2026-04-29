@@ -37,6 +37,7 @@ router.put('/my-restaurant/logo', authMiddleware, restaurantManagerMiddleware, u
   }
 });
 router.get('/my-restaurant/analytics', authMiddleware, restaurantManagerMiddleware, restaurantManagerController.getAnalytics);
+router.get('/admin/reviews', authMiddleware, reviewController.getAdminRestaurantReviews);
 
 router.get('/:id/reviews', reviewController.getRestaurantReviews);
 router.post('/:id/reviews', authMiddleware, customerMiddleware, reviewController.createOrUpdateReview);

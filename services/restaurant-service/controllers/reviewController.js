@@ -78,6 +78,45 @@ exports.createOrUpdateReview = async (req, res) => {
   }
 };
 
+/**
+ * GET /api/restaurants/admin/reviews - list reviews across all restaurants (admin)
+ */
+exports.getAdminRestaurantReviews = async (req, res) => {
+  try {
+    const role = String(req.user?.role || '').toLowerCase();
+    if (role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+    let reviews = await Review.find({})
+      .populate('restaurantId', 'name')
+      .limit(200)
+      .lean();
+    reviews = reviews.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+    const items = reviews.map((r) => ({
+      _id: r._id,
+      restaurantId: r.restaurantId?._id || r.restaurantId,
+      restaurantName: r.restaurantId?.name || 'Restaurant',
+      customerName: r.customerName || 'Customer',
+      rating: r.rating,
+      comment: r.comment || '',
+      createdAt: r.createdAt,
+      orderId: r.orderId || null,
+    }));
+    return res.json({
+      items,
+      summary: {
+        totalRatings: items.length,
+        averageRating: items.length
+          ? Number((items.reduce((s, i) => s + Number(i.rating || 0), 0) / items.length).toFixed(2))
+          : 0,
+      },
+    });
+  } catch (err) {
+    console.error('Get admin reviews error:', err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
 async function updateRestaurantRating(restaurantId) {
   try {
     const agg = await Review.aggregate([
