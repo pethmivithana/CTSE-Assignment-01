@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const MenuItem = require('../models/MenuItem');
+const MenuItem = require('../models/menuItem');
 
 function parsePricesInput(prices, fallbackPrice) {
   if (prices == null || prices === '') return null;
