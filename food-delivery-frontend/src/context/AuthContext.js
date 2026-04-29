@@ -51,6 +51,23 @@ export const AuthProvider = ({ children }) => {
     verifyToken();
   }, [API_URL]);
 
+  const loginAfterRegistration = async (email, password) => {
+    const response = await fetch(`${API_URL}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.message || 'Registration succeeded but auto-login failed');
+    }
+    localStorage.setItem('foodAppToken', data.token);
+    if (data.refreshToken) localStorage.setItem('foodAppRefreshToken', data.refreshToken);
+    if (data.user) localStorage.setItem(USER_CACHE_KEY, JSON.stringify(data.user));
+    setUser(data.user || null);
+    return data;
+  };
+
   const login = async (email, password) => {
     try {
       const response = await fetch(`${API_URL}/auth/login`, {
@@ -181,18 +198,14 @@ export const AuthProvider = ({ children }) => {
         };
       }
   
-      // For customers, we can log them in immediately
-      if (data.token) {
-        localStorage.setItem('foodAppToken', data.token);
-        if (data.refreshToken) localStorage.setItem('foodAppRefreshToken', data.refreshToken);
-        if (data.user) localStorage.setItem(USER_CACHE_KEY, JSON.stringify(data.user));
-        setUser(data.user);
-      }
+      // For customers, auto-login and continue straight to app.
+      await loginAfterRegistration(email, password);
   
       return {
         success: true,
         requiresApproval: false,
-        message: 'Registration successful!'
+        message: 'Registration successful!',
+        autoLoggedIn: true,
       };
     } catch (error) {
       console.error('Registration failed:', error);
@@ -273,8 +286,9 @@ export const AuthProvider = ({ children }) => {
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || 'Failed to verify');
-        if (data.user && payload.role === 'customer') {
-          return { success: true, message: 'Account created! Please sign in.', user: data.user };
+        if (payload.role === 'customer') {
+          await loginAfterRegistration(payload.email, payload.password);
+          return { success: true, message: 'Account created successfully!', autoLoggedIn: true };
         }
         return {
           success: true,

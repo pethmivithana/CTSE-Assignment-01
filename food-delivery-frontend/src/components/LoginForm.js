@@ -66,19 +66,26 @@ const LoginSignup = ({ onSuccess }) => {
         };
         const result = await registerWithOTP('verify', payload);
         if (result.success) {
+          if (!result.requiresApproval && onSuccess) {
+            onSuccess();
+            return;
+          }
           setSuccessMessage(result.message);
           setOtpStep('request');
           setUseOTPRegistration(false);
-          if (!result.requiresApproval && onSuccess) setTimeout(() => onSuccess(), 1800);
         } else setError(result.message || 'Verification failed');
       } else {
         const restaurantInfo = role === 'restaurantManager' ? { name: restaurantName, address: restaurantAddress } : null;
         const driverInfo = role === 'deliveryPerson' ? { vehicleType, vehicleModel, licensePlate, driverLicense, nicNumber } : null;
         const result = await register(fullName, email, password, contactNumber, role, restaurantInfo, driverInfo);
         if (result.success) {
+          if (!result.requiresApproval && onSuccess) {
+            onSuccess();
+            return;
+          }
           setSuccessMessage(result.message);
           window.scrollTo({ top: 0, behavior: 'smooth' });
-          if (result.requiresApproval) { /* stay */ } else if (onSuccess) setTimeout(() => onSuccess(), 1800);
+          if (result.requiresApproval) { /* stay */ }
         } else setError(result.message || 'Registration failed');
       }
     } catch (err) {
