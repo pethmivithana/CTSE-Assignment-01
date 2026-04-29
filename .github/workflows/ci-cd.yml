@@ -1,9 +1,6 @@
-# CTSE Assignment — CI/CD for Feedo microservices
-# On push/PR: install deps, run tests (if any), build Docker images.
-# On push to main/master: push images to GitHub Container Registry (GHCR).
-#
-# Required secrets (optional): none for basic CI. For GHCR push, GITHUB_TOKEN is automatic.
-# For SonarCloud use .github/workflows/sonarcloud.yml + SONAR_TOKEN secret.
+# Feedo CI/CD
+# - On PR/push: run service tests and verify Docker builds
+# - On push to main/master: build + push images to ACR and deploy to Azure Container Apps
 
 name: CI/CD
 
@@ -15,7 +12,14 @@ on:
   workflow_dispatch:
 
 env:
-  REGISTRY: ghcr.io
+  # Configure these in GitHub repository Variables
+  AZURE_RESOURCE_GROUP: feedo-rg
+  ACR_NAME: feedoacr83105
+  ACR_LOGIN_SERVER: feedoacr83105.azurecr.io
+  FRONTEND_API_URL: https://api-gateway-feedo.wonderfultree-fef71107.westus2.azurecontainerapps.io
+  AZURE_CLIENT_ID: 1c671c80-fd1f-4527-a48e-66c81c85b878
+  AZURE_TENANT_ID: 44e3cf94-19c9-4e32-96c3-14f5bf01391a
+  AZURE_SUBSCRIPTION_ID: 57d0d19c-a6b6-46fc-9d1b-38e100d968ff
 
 jobs:
   # --- Lint / test each Node service ---
@@ -84,7 +88,7 @@ jobs:
           npm ci 2>/dev/null || npm install
           npm run build
 
-  # --- Push images to GHCR (only on default branch pushes) ---
+  # --- Push images to ACR (only on default branch pushes) ---
   push-images:
     name: Push ${{ matrix.name }}
     runs-on: ubuntu-latest
@@ -92,7 +96,7 @@ jobs:
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
     permissions:
       contents: read
-      packages: write
+      id-token: write
 
     strategy:
       fail-fast: false
@@ -102,52 +106,60 @@ jobs:
             context: services/user-service
             file: services/user-service/Dockerfile
             image: feedo-user-service
+            app: user-service
           - name: restaurant-service
             context: services/restaurant-service
             file: services/restaurant-service/Dockerfile
             image: feedo-restaurant-service
+            app: restaurant-service
           - name: order-service
             context: services/order-service
             file: services/order-service/Dockerfile
             image: feedo-order-service
+            app: order-service-feedo
           - name: delivery-service
             context: services/delivery-service
             file: services/delivery-service/Dockerfile
             image: feedo-delivery-service
+            app: delivery-service
           - name: payment-service
             context: services/payment-service
             file: services/payment-service/Dockerfile
             image: feedo-payment-service
+            app: payment-service-feedo
           - name: notification-service
             context: services/notification-service
             file: services/notification-service/Dockerfile
             image: feedo-notification-service
+            app: notification-service-feedo
           - name: api-gateway
             context: api_gateway
             file: api_gateway/Dockerfile
             image: feedo-api-gateway
+            app: api-gateway-feedo
           - name: frontend
             context: food-delivery-frontend
             file: food-delivery-frontend/Dockerfile
             image: feedo-frontend
+            app: frontend-feedo
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
         with:
           install: true
 
-      - uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Normalize image namespace (lowercase)
-        shell: bash
-        run: echo "OWNER_LC=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
+      - name: ACR login
+        run: az acr login --name "${{ env.ACR_NAME }}"
 
       - name: Build and push
         uses: docker/build-push-action@v5
@@ -156,9 +168,61 @@ jobs:
           file: ${{ matrix.file }}
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.OWNER_LC }}/${{ matrix.image }}:${{ github.sha }}
-            ${{ env.REGISTRY }}/${{ env.OWNER_LC }}/${{ matrix.image }}:latest
+            ${{ env.ACR_LOGIN_SERVER }}/${{ matrix.image }}:${{ github.sha }}
+            ${{ env.ACR_LOGIN_SERVER }}/${{ matrix.image }}:latest
           build-args: |
-            REACT_APP_API_URL=http://localhost:3001
+            REACT_APP_API_URL=${{ env.FRONTEND_API_URL }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  # --- Deploy updated images to Azure Container Apps ---
+  deploy:
+    name: Deploy ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    needs: [push-images]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    permissions:
+      contents: read
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: user-service
+            app: user-service
+            image: feedo-user-service
+          - name: restaurant-service
+            app: restaurant-service
+            image: feedo-restaurant-service
+          - name: order-service
+            app: order-service-feedo
+            image: feedo-order-service
+          - name: delivery-service
+            app: delivery-service
+            image: feedo-delivery-service
+          - name: payment-service
+            app: payment-service-feedo
+            image: feedo-payment-service
+          - name: notification-service
+            app: notification-service-feedo
+            image: feedo-notification-service
+          - name: api-gateway
+            app: api-gateway-feedo
+            image: feedo-api-gateway
+          - name: frontend
+            app: frontend-feedo
+            image: feedo-frontend
+    steps:
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy latest image
+        run: |
+          az containerapp update \
+            --name "${{ matrix.app }}" \
+            --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
+            --image "${{ env.ACR_LOGIN_SERVER }}/${{ matrix.image }}:latest"
