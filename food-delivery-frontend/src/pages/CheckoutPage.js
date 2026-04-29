@@ -12,8 +12,10 @@ const stripePromise = process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY
   : null;
 
 const PENDING_ORDER_KEY = 'feedo_pending_order';
-const PAYPAL_SESSION_KEY = 'feedo_paypal_order';
 const TAX_RATE = Number(process.env.REACT_APP_ORDER_TAX_RATE ?? 0.05);
+const POST_ORDER_MESSAGE_KEY = 'postOrderMessage';
+const POST_ORDER_MESSAGE =
+  'Order placed successfully! Keep an eye on your email and in-app notifications for order status updates.';
 
 /** Aligns with order-service: saved address sends addressId + deliveryAddress for User Service validation */
 function buildDeliveryPayload({ addresses, street, city, postalCode, useNewAddress, selectedAddressId }) {
@@ -48,7 +50,6 @@ const StripeCheckoutForm = ({
   postalCode, setPostalCode, useNewAddress, setUseNewAddress, contactPhone, setContactPhone,
   paymentMethod, setPaymentMethod, couponCode, discount, restaurant, user, cart, clearCart,
   getTotalPrice, couponError, couponLoading, clientSecret, deliveryFee = 150, orderTotal = 0,
-  walletBalance,
 }) => {
   const navigate = useNavigate();
   const stripe = useStripe();
@@ -57,7 +58,6 @@ const StripeCheckoutForm = ({
   const [error, setError] = useState('');
 
   const isCardStripe = paymentMethod === 'CREDIT_CARD';
-  const isSimulatedCard = isCardStripe && !clientSecret;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -92,46 +92,6 @@ const StripeCheckoutForm = ({
         ...(couponCode && { couponCode }),
       };
 
-      if (paymentMethod === 'PAYPAL') {
-        const paypalRes = await api.createPaypalOrder({
-          customerId: user._id || user.id,
-          amount: orderTotal,
-          currency: 'LKR',
-          orderRef: `order_${Date.now()}`,
-          metadata: { restaurantId: restaurant._id || restaurant.id },
-          returnUrl: `${window.location.origin}/checkout/paypal-return`,
-          cancelUrl: `${window.location.origin}/checkout`,
-        });
-        sessionStorage.setItem(
-          PAYPAL_SESSION_KEY,
-          JSON.stringify({
-            orderData: { ...orderData, paymentMethod: 'PAYPAL' },
-            paypalOrderId: paypalRes.paypalOrderId,
-          }),
-        );
-        window.location.href = paypalRes.approvalUrl;
-        return;
-      }
-
-      if (paymentMethod === 'WALLET') {
-        const wp = await api.walletPay({
-          customerId: user._id || user.id,
-          amount: orderTotal,
-          currency: 'LKR',
-          orderRef: `order_${Date.now()}`,
-          metadata: { restaurantId: restaurant._id || restaurant.id },
-        });
-        await api.createOrder({
-          ...orderData,
-          paymentMethod: 'WALLET',
-          paymentId: wp.paymentId,
-          paymentStatus: 'COMPLETED',
-        });
-        clearCart();
-        navigate('/orders');
-        return;
-      }
-
       if (clientSecret && stripe && elements && isCardStripe) {
         sessionStorage.setItem(PENDING_ORDER_KEY, JSON.stringify({ orderData }));
         const returnUrl = `${window.location.origin}/checkout/complete`;
@@ -146,27 +106,12 @@ const StripeCheckoutForm = ({
         return;
       }
 
-      let paymentId = null;
-      let paymentStatus = null;
-      if (isSimulatedCard) {
-        const paymentRes = await api.createPayment({
-          customerId: user._id || user.id,
-          amount: orderTotal,
-          currency: 'LKR',
-          paymentMethod: 'CREDIT_CARD',
-          orderRef: `order_${Date.now()}`,
-          metadata: { restaurantId: restaurant._id || restaurant.id },
-        });
-        if (!paymentRes.success || paymentRes.status !== 'COMPLETED') {
-          throw new Error(paymentRes.message || 'Payment failed. Use Cash on Delivery.');
-        }
-        paymentId = paymentRes.paymentId;
-        paymentStatus = paymentRes.status;
+      if (isCardStripe) {
+        throw new Error('Stripe payment is not ready. Please wait and try again.');
       }
 
       const created = await api.createOrder({
         ...orderData,
-        ...(paymentId && { paymentId, paymentStatus }),
       });
       if (paymentMethod === 'CASH_ON_DELIVERY' && created?.data?._id) {
         api
@@ -178,6 +123,7 @@ const StripeCheckoutForm = ({
           .catch(() => {});
       }
       clearCart();
+      sessionStorage.setItem(POST_ORDER_MESSAGE_KEY, POST_ORDER_MESSAGE);
       navigate('/orders');
     } catch (err) {
       setError(err.message || 'Failed to place order');
@@ -191,8 +137,7 @@ const StripeCheckoutForm = ({
     !isProcessing &&
     contactPhone.trim() &&
     (addresses.length > 0 && !useNewAddress ? selectedAddressId : street.trim() && city.trim() && postalCode.trim()) &&
-    (!showStripeForm || (stripe && elements)) &&
-    !(paymentMethod === 'WALLET' && walletBalance != null && walletBalance < orderTotal);
+    (!showStripeForm || (stripe && elements));
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -263,13 +208,11 @@ const StripeCheckoutForm = ({
 
       <div>
         <h2 className="font-display font-semibold text-gray-800 mb-4">Payment method</h2>
-        <p className="text-sm text-gray-500 mb-3">Choose how you’d like to pay — secured by Stripe, PayPal, or your Feedo wallet.</p>
+        <p className="text-sm text-gray-500 mb-3">Choose how you’d like to pay — secured by Stripe card payments or cash on delivery.</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {[
             { id: 'CASH_ON_DELIVERY', title: 'Cash on delivery', sub: 'Pay when you receive', icon: '💵' },
             { id: 'CREDIT_CARD', title: 'Card (Stripe)', sub: 'Visa, Mastercard, etc.', icon: '💳' },
-            { id: 'WALLET', title: 'Feedo wallet', sub: walletBalance != null ? `Balance LKR ${Number(walletBalance).toFixed(2)}` : 'In-app balance', icon: '👛' },
-            { id: 'PAYPAL', title: 'PayPal', sub: 'Pay with PayPal account', icon: 'PP' },
           ].map((m) => (
             <label
               key={m.id}
@@ -295,12 +238,6 @@ const StripeCheckoutForm = ({
             </label>
           ))}
         </div>
-        {paymentMethod === 'WALLET' && walletBalance != null && walletBalance < orderTotal && (
-          <p className="mt-2 text-sm text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
-            Insufficient wallet balance. Add funds from Profile → Payments & wallet (demo top-up).
-          </p>
-        )}
-
         {showStripeForm && (
           <div className="mt-4 p-4 rounded-xl border border-gray-200 bg-gray-50/50">
             <PaymentElement options={{ layout: 'tabs' }} onReady={() => {}} />
@@ -325,18 +262,17 @@ const StripeCheckoutForm = ({
   );
 };
 
-// Form used when Stripe is NOT configured (no Elements - uses simulated payment)
+// Form used when Stripe is not initialized in the browser
 const SimpleCheckoutForm = ({
   addresses, selectedAddressId, setSelectedAddressId, street, setStreet, city, setCity,
   postalCode, setPostalCode, useNewAddress, setUseNewAddress, contactPhone, setContactPhone,
   paymentMethod, setPaymentMethod, couponCode, discount, restaurant, user, cart, clearCart,
   getTotalPrice, couponError, couponLoading, paymentIntentError, deliveryFee = 150, orderTotal = 0,
-  walletBalance,
 }) => {
   const navigate = useNavigate();
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState('');
-  const isCardSimulated = paymentMethod === 'CREDIT_CARD';
+  const isCardSelected = paymentMethod === 'CREDIT_CARD';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -369,64 +305,10 @@ const SimpleCheckoutForm = ({
         ...(couponCode && { couponCode }),
       };
 
-      if (paymentMethod === 'PAYPAL') {
-        const paypalRes = await api.createPaypalOrder({
-          customerId: user._id || user.id,
-          amount: orderTotal,
-          currency: 'LKR',
-          orderRef: `order_${Date.now()}`,
-          metadata: { restaurantId: restaurant._id || restaurant.id },
-          returnUrl: `${window.location.origin}/checkout/paypal-return`,
-          cancelUrl: `${window.location.origin}/checkout`,
-        });
-        sessionStorage.setItem(
-          PAYPAL_SESSION_KEY,
-          JSON.stringify({
-            orderData: { ...orderData, paymentMethod: 'PAYPAL' },
-            paypalOrderId: paypalRes.paypalOrderId,
-          }),
-        );
-        window.location.href = paypalRes.approvalUrl;
-        return;
+      if (isCardSelected) {
+        throw new Error('Stripe is currently unavailable. Please use cash on delivery or configure Stripe keys.');
       }
-
-      if (paymentMethod === 'WALLET') {
-        const wp = await api.walletPay({
-          customerId: user._id || user.id,
-          amount: orderTotal,
-          currency: 'LKR',
-          orderRef: `order_${Date.now()}`,
-          metadata: { restaurantId: restaurant._id || restaurant.id },
-        });
-        await api.createOrder({
-          ...orderData,
-          paymentMethod: 'WALLET',
-          paymentId: wp.paymentId,
-          paymentStatus: 'COMPLETED',
-        });
-        clearCart();
-        navigate('/orders');
-        return;
-      }
-
-      let paymentId = null;
-      let paymentStatus = null;
-      if (isCardSimulated) {
-        const paymentRes = await api.createPayment({
-          customerId: user._id || user.id,
-          amount: orderTotal,
-          currency: 'LKR',
-          paymentMethod: 'CREDIT_CARD',
-          orderRef: `order_${Date.now()}`,
-          metadata: { restaurantId: restaurant._id || restaurant.id },
-        });
-        if (!paymentRes.success || paymentRes.status !== 'COMPLETED') {
-          throw new Error(paymentRes.message || 'Payment failed. Use Cash on Delivery.');
-        }
-        paymentId = paymentRes.paymentId;
-        paymentStatus = paymentRes.status;
-      }
-      const created = await api.createOrder({ ...orderData, ...(paymentId && { paymentId, paymentStatus }) });
+      const created = await api.createOrder(orderData);
       if (paymentMethod === 'CASH_ON_DELIVERY' && created?.data?._id) {
         api
           .recordCodPayment({
@@ -437,6 +319,7 @@ const SimpleCheckoutForm = ({
           .catch(() => {});
       }
       clearCart();
+      sessionStorage.setItem(POST_ORDER_MESSAGE_KEY, POST_ORDER_MESSAGE);
       navigate('/orders');
     } catch (err) {
       setError(err.message || 'Failed to place order');
@@ -449,7 +332,7 @@ const SimpleCheckoutForm = ({
     !isProcessing &&
     contactPhone.trim() &&
     (addresses.length > 0 && !useNewAddress ? selectedAddressId : street.trim() && city.trim() && postalCode.trim()) &&
-    !(paymentMethod === 'WALLET' && walletBalance != null && walletBalance < orderTotal);
+    true;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -492,13 +375,11 @@ const SimpleCheckoutForm = ({
       </div>
       <div>
         <h2 className="font-display font-semibold text-gray-800 mb-4">Payment method</h2>
-        <p className="text-sm text-gray-500 mb-3">Stripe not configured — card payments are simulated. PayPal & wallet use live APIs when enabled.</p>
+        <p className="text-sm text-gray-500 mb-3">Stripe card payments require Stripe keys. Cash on delivery is always available.</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {[
             { id: 'CASH_ON_DELIVERY', title: 'Cash on delivery', sub: 'Pay when you receive', icon: '💵' },
-            { id: 'CREDIT_CARD', title: 'Card (simulated)', sub: 'No Stripe keys on server', icon: '💳' },
-            { id: 'WALLET', title: 'Feedo wallet', sub: walletBalance != null ? `Balance LKR ${Number(walletBalance).toFixed(2)}` : 'In-app balance', icon: '👛' },
-            { id: 'PAYPAL', title: 'PayPal', sub: 'Secure PayPal checkout', icon: 'PP' },
+            { id: 'CREDIT_CARD', title: 'Card (Stripe)', sub: 'Requires Stripe configuration', icon: '💳' },
           ].map((m) => (
             <label
               key={m.id}
@@ -524,17 +405,12 @@ const SimpleCheckoutForm = ({
             </label>
           ))}
         </div>
-        {paymentMethod === 'WALLET' && walletBalance != null && walletBalance < orderTotal && (
-          <p className="mt-2 text-sm text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
-            Insufficient wallet balance. Add funds from Profile → Payments & wallet.
-          </p>
-        )}
-        {isCardSimulated && (
+        {isCardSelected && (
           <div className="mt-2 space-y-1">
             {paymentIntentError ? (
               <p className="text-sm text-red-600">{paymentIntentError}</p>
             ) : (
-              <p className="text-sm text-amber-600">Simulated card payment — no real card charge.</p>
+              <p className="text-sm text-amber-600">Card checkout is currently unavailable in this environment.</p>
             )}
           </div>
         )}
@@ -573,7 +449,7 @@ const CheckoutPage = () => {
   const [clientSecret, setClientSecret] = useState('');
   const [paymentIntentError, setPaymentIntentError] = useState('');
   const [deliveryFee, setDeliveryFee] = useState(150);
-  const [walletBalance, setWalletBalance] = useState(null);
+  const [eligibleCoupons, setEligibleCoupons] = useState([]);
 
   useEffect(() => {
     if (!restaurant || (!street && (!addresses.length || !selectedAddressId))) {
@@ -640,15 +516,14 @@ const CheckoutPage = () => {
   }, [selectedAddressId, useNewAddress, addresses]);
 
   useEffect(() => {
-    const cid = user?._id || user?.id;
-    if (!cid) return;
+    if (!user || user.role !== 'customer') return;
+    const rid = restaurant?._id || restaurant?.id;
+    if (!rid) return;
     api
-      .getWalletBalance(cid)
-      .then((res) => {
-        if (res.success != null) setWalletBalance(res.balance);
-      })
-      .catch(() => setWalletBalance(null));
-  }, [user]);
+      .getEligibleCoupons(rid, getTotalPrice())
+      .then((list) => setEligibleCoupons(Array.isArray(list) ? list : []))
+      .catch(() => setEligibleCoupons([]));
+  }, [user, restaurant, getTotalPrice, cart.length]);
 
   const subtotal = getTotalPrice();
   const tax = Math.max(0, (subtotal - discount) * TAX_RATE);
@@ -723,7 +598,7 @@ const CheckoutPage = () => {
       setCouponError('');
       setCouponLoading(true);
       try {
-        const res = await api.validateCoupon(code, getTotalPrice());
+        const res = await api.validateCoupon(code, getTotalPrice(), restaurant?._id || restaurant?.id);
         if (res.valid && res.discountAmount) {
           setCouponCode(res.code || code);
           setDiscount(res.discountAmount);
@@ -754,10 +629,18 @@ const CheckoutPage = () => {
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
-      <h1 className="text-2xl md:text-3xl font-display font-bold text-gray-800 mb-8">Checkout</h1>
+      <div className="mb-8">
+        <h1 className="text-2xl md:text-3xl font-display font-bold text-gray-800">Checkout</h1>
+        <p className="text-sm text-gray-500 mt-1">Review your order, choose payment, and place it securely.</p>
+      </div>
       <div className="flex flex-col lg:flex-row gap-8">
         <div className="lg:flex-1">
-          <div className="card p-6 sm:p-8 shadow-md">{form}</div>
+          <div className="card p-6 sm:p-8 shadow-md rounded-3xl border border-gray-100">{form}</div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <span className="px-3 py-1.5 text-xs rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">Encrypted payment</span>
+            <span className="px-3 py-1.5 text-xs rounded-full bg-blue-50 text-blue-700 border border-blue-200">Live order tracking</span>
+            <span className="px-3 py-1.5 text-xs rounded-full bg-violet-50 text-violet-700 border border-violet-200">Instant notifications</span>
+          </div>
         </div>
         <div className="lg:w-96 flex-shrink-0">
           <OrderSummary
@@ -768,6 +651,7 @@ const CheckoutPage = () => {
             onApplyCoupon={formProps.handleApplyCoupon}
             couponError={couponError}
             couponLoading={couponLoading}
+            eligibleCoupons={eligibleCoupons}
             deliveryFee={deliveryFee}
             grandTotal={orderTotal}
           />

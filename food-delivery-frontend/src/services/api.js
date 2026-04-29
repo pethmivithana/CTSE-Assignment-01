@@ -87,53 +87,6 @@ export const api = {
     if (!res.ok) throw new Error('Payment not found');
     return res.json();
   },
-  getWalletBalance: async (customerId) => {
-    const qs = new URLSearchParams({ customerId }).toString();
-    const res = await fetch(`${API_URL}/api/payments/wallet/balance?${qs}`, { headers: getAuthHeaders() });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.message || 'Wallet unavailable');
-    return data;
-  },
-  walletTopUp: async (customerId, amount) => {
-    const res = await fetch(`${API_URL}/api/payments/wallet/topup`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ customerId, amount }),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.message || 'Top-up failed');
-    return data;
-  },
-  walletPay: async (payload) => {
-    const res = await fetch(`${API_URL}/api/payments/wallet/pay`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(payload),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.message || 'Wallet payment failed');
-    return data;
-  },
-  createPaypalOrder: async (payload) => {
-    const res = await fetch(`${API_URL}/api/payments/paypal/create-order`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(payload),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.message || 'PayPal order failed');
-    return data;
-  },
-  capturePaypal: async (paypalOrderId, orderId) => {
-    const res = await fetch(`${API_URL}/api/payments/paypal/capture`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ paypalOrderId, orderId }),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.message || 'PayPal capture failed');
-    return data;
-  },
   recordCodPayment: async (payload) => {
     const res = await fetch(`${API_URL}/api/payments/cod`, {
       method: 'POST',
@@ -144,26 +97,13 @@ export const api = {
     if (!res.ok) throw new Error(data.message || 'Failed to record COD');
     return data;
   },
-  getPaymentHistory: async (customerId) => {
-    const qs = new URLSearchParams({ customerId }).toString();
-    const res = await fetch(`${API_URL}/api/payments/history/me?${qs}`, { headers: getAuthHeaders() });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.message || 'Failed to load payments');
-    return data.data || data;
-  },
-  getPaymentReceipt: async (paymentId, format) => {
-    const q = format === 'html' ? '?format=html' : '';
-    const res = await fetch(`${API_URL}/api/payments/receipt/${paymentId}${q}`, { headers: getAuthHeaders() });
-    if (format === 'html') return res.text();
-    return res.json();
-  },
 
   // Orders
-  validateCoupon: async (code, orderTotal) => {
+  validateCoupon: async (code, orderTotal, restaurantId) => {
     const res = await fetch(`${API_URL}/api/orders/validate-coupon`, {
       method: 'POST',
       headers: getAuthHeaders(),
-      body: JSON.stringify({ code, orderTotal }),
+      body: JSON.stringify({ code, orderTotal, restaurantId }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.message || 'Failed to validate coupon');
@@ -456,6 +396,15 @@ export const api = {
     if (!res.ok) throw new Error(data.error || 'Failed to update status');
     return data;
   },
+  collectDeliveryPayment: async (driverId, deliveryId) => {
+    const res = await fetch(`${API_URL}/api/delivery/drivers/${driverId}/deliveries/${deliveryId}/payment/collect`, {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Failed to collect payment');
+    return data;
+  },
   updateDriverLocation: async (driverId, latitude, longitude) => {
     const res = await fetch(`${API_URL}/api/delivery/drivers/${driverId}/location`, {
       method: 'PUT',
@@ -617,6 +566,16 @@ export const api = {
     const res = await fetch(`${API_URL}/api/coupons`, { headers: getAuthHeaders() });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.message || 'Failed to fetch coupons');
+    return data.data || data;
+  },
+  getEligibleCoupons: async (restaurantId, orderTotal = 0) => {
+    const qs = new URLSearchParams({
+      ...(restaurantId ? { restaurantId: String(restaurantId) } : {}),
+      orderTotal: String(orderTotal ?? 0),
+    }).toString();
+    const res = await fetch(`${API_URL}/api/coupons/eligible?${qs}`, { headers: getAuthHeaders() });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.message || 'Failed to fetch eligible coupons');
     return data.data || data;
   },
   createCoupon: async (couponData) => {

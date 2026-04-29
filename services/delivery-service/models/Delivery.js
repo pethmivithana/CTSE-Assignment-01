@@ -28,6 +28,24 @@ const DeliverySchema = new mongoose.Schema({
     }],
     totalAmount: Number
   },
+  paymentMethod: {
+    type: String,
+    enum: ['CREDIT_CARD', 'DEBIT_CARD', 'CASH_ON_DELIVERY', 'ONLINE_PAYMENT'],
+    default: 'CASH_ON_DELIVERY'
+  },
+  paymentStatus: {
+    type: String,
+    enum: ['PENDING', 'COMPLETED', 'FAILED', 'REFUNDED'],
+    default: 'PENDING'
+  },
+  codAmountDue: {
+    type: Number,
+    default: 0
+  },
+  paymentCollectedAt: {
+    type: Date,
+    default: null
+  },
   pickupLocation: {
     address: {
       type: String,

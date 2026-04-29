@@ -20,6 +20,17 @@ const statusConfig = {
 };
 
 const canCustomerCancel = (status) => status === 'CREATED' || status === 'PENDING';
+const paymentMethodLabel = (method) => {
+  const map = {
+    CASH_ON_DELIVERY: 'Cash on Delivery',
+    CREDIT_CARD: 'Credit Card',
+    DEBIT_CARD: 'Debit Card',
+    ONLINE_PAYMENT: 'Online Payment',
+    PAYPAL: 'PayPal',
+    WALLET: 'Wallet',
+  };
+  return map[method] || method || 'N/A';
+};
 
 const OrdersPage = () => {
   const { user } = useAuth();
@@ -29,6 +40,7 @@ const OrdersPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [actionId, setActionId] = useState(null);
+  const [orderToast, setOrderToast] = useState('');
 
   const refresh = async () => {
     const data = await api.getMyOrders();
@@ -66,6 +78,15 @@ const OrdersPage = () => {
     }, 8000);
     return () => clearInterval(id);
   }, [user]);
+
+  useEffect(() => {
+    const msg = sessionStorage.getItem('postOrderMessage');
+    if (!msg) return;
+    setOrderToast(msg);
+    sessionStorage.removeItem('postOrderMessage');
+    const id = setTimeout(() => setOrderToast(''), 7000);
+    return () => clearTimeout(id);
+  }, []);
 
   const getStatusBadge = (status) => {
     const config = statusConfig[status] || { label: status, class: 'bg-gray-100 text-gray-700' };
@@ -123,6 +144,24 @@ const OrdersPage = () => {
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10">
+      {orderToast && (
+        <div className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-900 shadow-sm">
+          <div className="flex items-start gap-3 p-4">
+            <svg className="w-5 h-5 mt-0.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+            </svg>
+            <p className="text-sm leading-relaxed flex-1">{orderToast}</p>
+            <button
+              type="button"
+              onClick={() => setOrderToast('')}
+              className="text-emerald-700 hover:text-emerald-900"
+              aria-label="Dismiss order message"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
       <h1 className="text-2xl md:text-3xl font-display font-bold text-gray-800 mb-10">Your Orders</h1>
 
       {loading ? (
@@ -160,7 +199,7 @@ const OrdersPage = () => {
       ) : (
         <div className="space-y-5">
           {orders.map((order) => (
-            <div key={order._id} className="card overflow-hidden shadow-lg">
+            <div key={order._id} className="card overflow-hidden shadow-lg rounded-2xl border border-gray-100">
               <div className="flex flex-col sm:flex-row">
                 <div className="sm:w-40 min-h-[144px] sm:min-h-[180px] bg-gray-100 flex-shrink-0 flex items-center justify-center p-2 overflow-hidden relative">
                   {(() => {
@@ -193,7 +232,7 @@ const OrdersPage = () => {
                     );
                   })()}
                 </div>
-                <div className="p-6 flex-1">
+                <div className="p-6 flex-1 bg-gradient-to-br from-white via-white to-gray-50/40">
                   <div className="flex flex-wrap justify-between items-start gap-2 mb-4">
                     <div>
                       <h3 className="font-display font-semibold text-gray-800">Order #{order._id?.slice(-6).toUpperCase()}</h3>
@@ -233,6 +272,25 @@ const OrdersPage = () => {
                     <p className="text-sm text-gray-500">{formatAddress(order.deliveryAddress)}</p>
                     <p className="font-semibold text-gray-800">LKR {(order.totalAmount || order.total || 0).toFixed(2)}</p>
                   </div>
+                  <div className="mt-2 text-sm text-gray-600 flex items-center gap-2">
+                    <p>
+                      Payment: <span className="font-medium">{paymentMethodLabel(order.paymentMethod)}</span>{' '}
+                      <span className={`text-xs px-2 py-1 rounded-full ${
+                        order.paymentStatus === 'COMPLETED'
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : order.paymentStatus === 'FAILED'
+                          ? 'bg-red-100 text-red-700'
+                          : 'bg-amber-100 text-amber-700'
+                      }`}>
+                        {order.paymentStatus || 'PENDING'}
+                      </span>
+                    </p>
+                  </div>
+                  {order.paymentMethod === 'CASH_ON_DELIVERY' && order.paymentStatus !== 'COMPLETED' && (
+                    <p className="text-xs text-amber-700 mt-2 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-2 inline-block">
+                      Ready LKR {(order.totalAmount || 0).toFixed(2)} in change for the driver.
+                    </p>
+                  )}
                   {order.refundRequested && (
                     <p className="text-xs text-amber-700 mt-2">Refund requested — our team will process it shortly.</p>
                   )}

@@ -19,6 +19,8 @@ router.post('/validate-coupon', authMiddleware, customerMiddleware, orderControl
 
 // Internal: status update from delivery service (no auth - consider adding service-to-service auth)
 router.patch('/:id/status-update', requireInternalKey, orderController.updateOrderStatusInternal);
+router.get('/:id/payment-info', requireInternalKey, orderController.getOrderPaymentInfoInternal);
+router.patch('/:id/payment/collect-cod', requireInternalKey, orderController.collectCodPaymentInternal);
 
 // Order tracking - public (track by order ID)
 router.get('/track/:id', orderController.trackOrder);

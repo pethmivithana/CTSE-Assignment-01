@@ -20,6 +20,17 @@ const DefaultIcon = L.icon({
   shadowSize: [41, 41],
 });
 L.Marker.mergeOptions({ icon: DefaultIcon });
+const paymentMethodLabel = (method) => {
+  const map = {
+    CASH_ON_DELIVERY: 'Cash on Delivery',
+    CREDIT_CARD: 'Credit Card',
+    DEBIT_CARD: 'Debit Card',
+    ONLINE_PAYMENT: 'Online Payment',
+    PAYPAL: 'PayPal',
+    WALLET: 'Wallet',
+  };
+  return map[method] || method || 'N/A';
+};
 
 function FitMapToBounds({ points }) {
   const map = useMap();
@@ -230,6 +241,19 @@ const DeliveryDashboard = () => {
     }
   };
 
+  const handleCollectPayment = async (deliveryId) => {
+    if (!driver?.driver) return;
+    setUpdating(`pay-${deliveryId}`);
+    try {
+      await api.collectDeliveryPayment(driver.driver.id, deliveryId);
+      loadData();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setUpdating(null);
+    }
+  };
+
   if (authLoading || (user && user.role !== 'deliveryPerson')) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -337,6 +361,15 @@ const DeliveryDashboard = () => {
                       <p><span className="font-medium">Dropoff:</span> {myDeliveries.currentDelivery.dropoffLocation?.address}</p>
                       <p><span className="font-medium">Distance:</span> {myDeliveries.currentDelivery.distance?.toFixed(1)} km</p>
                       <p><span className="font-medium">Status:</span> {myDeliveries.currentDelivery.status}</p>
+                      <p>
+                        <span className="font-medium">Payment:</span>{' '}
+                        {paymentMethodLabel(myDeliveries.currentDelivery.paymentMethod)} ({myDeliveries.currentDelivery.paymentStatus || 'PENDING'})
+                      </p>
+                      {myDeliveries.currentDelivery.paymentMethod === 'CASH_ON_DELIVERY' && myDeliveries.currentDelivery.paymentStatus !== 'COMPLETED' && (
+                        <p className="text-sm text-amber-700">
+                          Collect LKR {(myDeliveries.currentDelivery.codAmountDue || myDeliveries.currentDelivery.orderDetails?.totalAmount || 0).toFixed(2)} cash from customer.
+                        </p>
+                      )}
                       {(() => {
                         const cur = myDeliveries.currentDelivery;
                         const pickupPos =
@@ -469,6 +502,15 @@ const DeliveryDashboard = () => {
                         );
                       })()}
                       <div className="flex gap-2 flex-wrap">
+                        {myDeliveries.currentDelivery.paymentMethod === 'CASH_ON_DELIVERY' && myDeliveries.currentDelivery.paymentStatus !== 'COMPLETED' && (
+                          <button
+                            onClick={() => handleCollectPayment(myDeliveries.currentDelivery._id)}
+                            disabled={!!updating}
+                            className="px-4 py-2 rounded-lg bg-amber-500 text-white text-sm font-medium"
+                          >
+                            {updating === `pay-${myDeliveries.currentDelivery._id}` ? 'Collecting...' : 'Accept Payment'}
+                          </button>
+                        )}
                         {myDeliveries.currentDelivery.status === 'DRIVER_ASSIGNED' && (
                           <button onClick={() => handleUpdateStatus(myDeliveries.currentDelivery._id, 'PICKED_UP')} disabled={updating} className="px-4 py-2 rounded-lg bg-blue-500 text-white text-sm font-medium">Picked Up</button>
                         )}
@@ -513,6 +555,9 @@ const DeliveryDashboard = () => {
                             <p className="font-medium">Order #{del.orderId?.slice(-6)}</p>
                             <p className="text-sm text-gray-600">{del.pickupLocation?.address} → {del.dropoffLocation?.address}</p>
                             <p className="text-sm text-gray-500">{del.distance?.toFixed(1)} km</p>
+                            <p className="text-sm text-gray-600">
+                              Payment: {paymentMethodLabel(del.paymentMethod)} ({del.paymentStatus || 'PENDING'})
+                            </p>
                           </div>
                           <button
                             onClick={() => handleAcceptDelivery(del._id)}

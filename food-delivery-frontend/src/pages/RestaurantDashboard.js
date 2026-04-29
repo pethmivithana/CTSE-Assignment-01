@@ -15,6 +15,7 @@ const RestaurantDashboard = () => {
   const [categories, setCategories] = useState([]);
   const [menuItems, setMenuItems] = useState([]);
   const [reviews, setReviews] = useState([]);
+  const [coupons, setCoupons] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [firstLoginNotice, setFirstLoginNotice] = useState('');
@@ -34,18 +35,20 @@ const RestaurantDashboard = () => {
       const rest = await api.getMyRestaurant();
       setRestaurant(rest);
       if (rest) {
-        const [ordersRes, analyticsRes, categoriesRes, itemsRes, reviewsRes] = await Promise.all([
+        const [ordersRes, analyticsRes, categoriesRes, itemsRes, reviewsRes, couponsRes] = await Promise.all([
           api.getRestaurantOrders().catch(() => []),
           api.getMyRestaurantAnalytics().catch(() => null),
           api.getCategories(rest._id).catch(() => []),
           api.getMenuItems({ restaurantId: rest._id }).catch(() => []),
           api.getRestaurantReviews(rest._id).catch(() => []),
+          api.getCoupons().catch(() => []),
         ]);
         setOrders(Array.isArray(ordersRes) ? ordersRes : ordersRes?.data || []);
         setAnalytics(analyticsRes);
         setCategories(Array.isArray(categoriesRes) ? categoriesRes : categoriesRes?.data || []);
         setMenuItems(Array.isArray(itemsRes) ? itemsRes : itemsRes?.data || []);
         setReviews(Array.isArray(reviewsRes) ? reviewsRes : reviewsRes?.items || []);
+        setCoupons(Array.isArray(couponsRes) ? couponsRes : couponsRes?.data || []);
       }
     } catch (err) {
       setError(err.message || 'Failed to load data');
@@ -101,6 +104,7 @@ const RestaurantDashboard = () => {
     { id: 'orders', label: 'Orders', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
     { id: 'profile', label: 'Profile', icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 8h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4' },
     { id: 'menu', label: 'Menu', icon: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253' },
+    { id: 'coupons', label: 'Coupons', icon: 'M5 13l4 4L19 7M5 7h14M5 17h14' },
     { id: 'analytics', label: 'Analytics', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
   ];
 
@@ -174,6 +178,8 @@ const RestaurantDashboard = () => {
           <ProfileTab restaurant={restaurant} onUpdate={loadData} />
         ) : activeTab === 'menu' ? (
           <MenuTab restaurant={restaurant} categories={categories} menuItems={menuItems} onUpdate={loadData} />
+        ) : activeTab === 'coupons' ? (
+          <CouponsTab coupons={coupons} onUpdate={loadData} />
         ) : (
           <AnalyticsTab analytics={analytics} reviews={reviews} />
         )}
@@ -226,6 +232,17 @@ const ORDER_STATUS_TABS = [
 ];
 
 const isAwaitingRestaurant = (s) => s === 'CREATED' || s === 'PENDING';
+const paymentMethodLabel = (method) => {
+  const map = {
+    CASH_ON_DELIVERY: 'Cash on Delivery',
+    CREDIT_CARD: 'Credit Card',
+    DEBIT_CARD: 'Debit Card',
+    ONLINE_PAYMENT: 'Online Payment',
+    PAYPAL: 'PayPal',
+    WALLET: 'Wallet',
+  };
+  return map[method] || method || 'N/A';
+};
 
 function OrdersTab({ orders, onUpdate }) {
   const [updating, setUpdating] = useState(null);
@@ -372,6 +389,10 @@ function OrdersTab({ orders, onUpdate }) {
                     </div>
                   </div>
                   <p className="text-sm text-gray-500 mb-3">{formatDate(o.createdAt)}</p>
+                  <p className="text-sm text-gray-600 mb-3">
+                    Payment: <span className="font-medium">{paymentMethodLabel(o.paymentMethod)}</span>{' '}
+                    <span className="text-xs text-gray-500">({o.paymentStatus || 'PENDING'})</span>
+                  </p>
                   <div className="flex flex-wrap gap-2 mb-4">
                     {o.items?.map((item, i) => {
                       const sizeLabel = item.size ? { small: 'S', medium: 'M', large: 'L' }[item.size] || item.size : '';
@@ -1009,6 +1030,119 @@ function AnalyticsTab({ analytics, reviews }) {
         ) : (
           <p className="text-gray-500">No reviews yet</p>
         )}
+      </div>
+    </div>
+  );
+}
+
+function CouponsTab({ coupons, onUpdate }) {
+  const [form, setForm] = useState({
+    code: '',
+    title: '',
+    description: '',
+    discountType: 'PERCENTAGE',
+    discountValue: 10,
+    minOrderAmount: 0,
+    validUntil: '',
+    usageLimit: '',
+  });
+  const [saving, setSaving] = useState(false);
+
+  const createCoupon = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await api.createCoupon({
+        code: form.code,
+        title: form.title,
+        description: form.description,
+        discountType: form.discountType,
+        discountValue: Number(form.discountValue) || 0,
+        minOrderAmount: Number(form.minOrderAmount) || 0,
+        validUntil: form.validUntil,
+        usageLimit: form.usageLimit ? Number(form.usageLimit) : null,
+      });
+      setForm({
+        code: '',
+        title: '',
+        description: '',
+        discountType: 'PERCENTAGE',
+        discountValue: 10,
+        minOrderAmount: 0,
+        validUntil: '',
+        usageLimit: '',
+      });
+      onUpdate();
+    } catch (err) {
+      alert(err.message || 'Failed to create coupon');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const activeCoupons = coupons.filter((c) => c.isActive !== false && new Date(c.validUntil) >= new Date());
+  const expiredCoupons = coupons.filter((c) => new Date(c.validUntil) < new Date());
+  return (
+    <div className="space-y-5">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="card p-4">
+          <p className="text-xs uppercase tracking-wide text-gray-500">Total coupons</p>
+          <p className="text-2xl font-bold text-gray-800 mt-1">{coupons.length}</p>
+        </div>
+        <div className="card p-4">
+          <p className="text-xs uppercase tracking-wide text-gray-500">Active</p>
+          <p className="text-2xl font-bold text-emerald-600 mt-1">{activeCoupons.length}</p>
+        </div>
+        <div className="card p-4">
+          <p className="text-xs uppercase tracking-wide text-gray-500">Expired</p>
+          <p className="text-2xl font-bold text-amber-600 mt-1">{expiredCoupons.length}</p>
+        </div>
+      </div>
+
+      <div className="card p-6 rounded-2xl border border-gray-100 shadow-sm">
+        <h2 className="text-lg font-semibold mb-1">Create customer coupon</h2>
+        <p className="text-sm text-gray-500 mb-4">Launch targeted offers customers can apply at checkout.</p>
+        <form onSubmit={createCoupon} className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <input className="input-field" placeholder="Code (e.g. SAVE10)" value={form.code} onChange={(e) => setForm((f) => ({ ...f, code: e.target.value.toUpperCase() }))} required />
+          <input className="input-field" placeholder="Title (optional)" value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} />
+          <select className="input-field" value={form.discountType} onChange={(e) => setForm((f) => ({ ...f, discountType: e.target.value }))}>
+            <option value="PERCENTAGE">Percentage</option>
+            <option value="FIXED">Fixed</option>
+          </select>
+          <input type="number" className="input-field" placeholder="Discount value" value={form.discountValue} onChange={(e) => setForm((f) => ({ ...f, discountValue: e.target.value }))} min="0" required />
+          <input type="number" className="input-field" placeholder="Min order amount" value={form.minOrderAmount} onChange={(e) => setForm((f) => ({ ...f, minOrderAmount: e.target.value }))} min="0" />
+          <input type="datetime-local" className="input-field" value={form.validUntil} onChange={(e) => setForm((f) => ({ ...f, validUntil: e.target.value }))} required />
+          <input className="input-field md:col-span-2" placeholder="Description (optional)" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
+          <input type="number" className="input-field" placeholder="Usage limit (optional)" value={form.usageLimit} onChange={(e) => setForm((f) => ({ ...f, usageLimit: e.target.value }))} min="1" />
+          <button className="btn-primary md:col-span-3 py-2.5" disabled={saving}>{saving ? 'Creating...' : 'Create coupon'}</button>
+        </form>
+      </div>
+
+      <div className="card overflow-hidden rounded-2xl border border-gray-100 shadow-sm">
+        <h3 className="px-4 py-3 border-b font-semibold bg-gray-50">Your coupons</h3>
+        <div className="divide-y">
+          {coupons.length === 0 ? (
+            <p className="p-4 text-sm text-gray-500">No coupons yet</p>
+          ) : (
+            coupons.map((c) => (
+              <div key={c._id} className="p-4 flex flex-wrap items-center justify-between gap-3 hover:bg-gray-50/70">
+                <div>
+                  <p className="font-semibold text-gray-800">{c.code} {c.title ? `- ${c.title}` : ''}</p>
+                  <p className="text-sm text-gray-600">
+                    {c.discountType === 'PERCENTAGE' ? `${c.discountValue}%` : `LKR ${c.discountValue}`} off · Min LKR {c.minOrderAmount || 0}
+                  </p>
+                  {c.description ? <p className="text-xs text-gray-500 mt-1">{c.description}</p> : null}
+                </div>
+                <div className="text-right">
+                  <span className={`text-xs px-2 py-1 rounded-full ${new Date(c.validUntil) >= new Date() ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                    {new Date(c.validUntil) >= new Date() ? 'Active' : 'Expired'}
+                  </span>
+                  <p className="text-xs text-gray-500 mt-1">Expires {new Date(c.validUntil).toLocaleDateString()}</p>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       </div>
     </div>
   );

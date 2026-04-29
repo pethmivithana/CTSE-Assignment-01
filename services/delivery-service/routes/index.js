@@ -36,6 +36,7 @@ router.get('/drivers/:id/deliveries', authenticateToken, authorizeDriver, driver
 router.post('/drivers/:id/accept', authenticateToken, authorizeDriver, validateRequest, driverController.acceptDelivery);//ok
 router.post('/drivers/:id/reject', authenticateToken, authorizeDriver, validateRequest, driverController.rejectDelivery);
 router.put('/drivers/:id/deliveries/:deliveryId/status', authenticateToken, authorizeDriver, validateRequest, driverController.updateDeliveryStatus);
+router.patch('/drivers/:id/deliveries/:deliveryId/payment/collect', authenticateToken, authorizeDriver, driverController.collectDeliveryPayment);
 
 // Map related routes
 router.get('/map/directions', mapController.getDirections);

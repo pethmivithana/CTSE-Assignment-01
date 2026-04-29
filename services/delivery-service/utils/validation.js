@@ -17,6 +17,9 @@ exports.validateDeliveryData = (data) => {
       ).required(),
       totalAmount: Joi.number().min(0).required()
     }).required(),
+    paymentMethod: Joi.string().valid('CREDIT_CARD', 'DEBIT_CARD', 'CASH_ON_DELIVERY', 'ONLINE_PAYMENT'),
+    paymentStatus: Joi.string().valid('PENDING', 'COMPLETED', 'FAILED', 'REFUNDED'),
+    codAmountDue: Joi.number().min(0),
     pickupLocation: Joi.object({
       address: Joi.string().required(),
       latitude: Joi.number().required(),

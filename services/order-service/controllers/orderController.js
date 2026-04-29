@@ -41,13 +41,22 @@ async function validateCouponCode(code, orderTotal) {
   return { valid: true, discountAmount: Math.round(discount * 100) / 100, coupon };
 }
 
+function couponAppliesToRestaurant(coupon, restaurantId) {
+  if (!coupon?.restaurantId) return true; // global coupon
+  if (!restaurantId) return false;
+  return String(coupon.restaurantId) === String(restaurantId);
+}
+
 exports.validateCoupon = async (req, res) => {
   try {
-    const { code, orderTotal } = req.body;
+    const { code, orderTotal, restaurantId } = req.body;
     if (!code || orderTotal == null) {
       return res.status(400).json({ success: false, message: 'code and orderTotal required' });
     }
     const result = await validateCouponCode(code.trim().toUpperCase(), Number(orderTotal));
+    if (result.valid && !couponAppliesToRestaurant(result.coupon, restaurantId)) {
+      return res.status(200).json({ success: false, valid: false, message: 'Coupon not available for this restaurant' });
+    }
     if (!result.valid) {
       return res.status(200).json({ success: false, valid: false, message: result.message });
     }
@@ -108,7 +117,7 @@ exports.createOrder = async (req, res) => {
 
     if (couponCode && couponCode.trim()) {
       const couponResult = await validateCouponCode(couponCode.trim().toUpperCase(), subtotal);
-      if (couponResult.valid) {
+      if (couponResult.valid && couponAppliesToRestaurant(couponResult.coupon, restaurantId)) {
         discountAmount = couponResult.discountAmount;
         subtotal = Math.max(0, subtotal - discountAmount);
       }
@@ -118,7 +127,7 @@ exports.createOrder = async (req, res) => {
     const taxAmount = Math.round(afterDiscount * TAX_RATE * 100) / 100;
     const totalAmount = Math.round((afterDiscount + taxAmount + (Number(deliveryFee) || 0)) * 100) / 100;
 
-    const isPrepaid = ['CREDIT_CARD', 'DEBIT_CARD', 'ONLINE_PAYMENT', 'PAYPAL', 'WALLET'].includes(paymentMethod);
+    const isPrepaid = ['CREDIT_CARD', 'DEBIT_CARD', 'ONLINE_PAYMENT'].includes(paymentMethod);
     const orderPaymentStatus = isPrepaid && paymentId && paymentStatus === 'COMPLETED' ? 'COMPLETED' : 'PENDING';
 
     const order = new Order({
@@ -214,6 +223,56 @@ exports.updateOrderStatusInternal = async (req, res) => {
     res.status(200).json({ success: true, data: order });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.getOrderPaymentInfoInternal = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid order ID' });
+    }
+    const order = await Order.findById(id).select('paymentMethod paymentStatus totalAmount');
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+    return res.status(200).json({
+      success: true,
+      data: {
+        paymentMethod: order.paymentMethod,
+        paymentStatus: order.paymentStatus,
+        totalAmount: order.totalAmount,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.collectCodPaymentInternal = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid order ID' });
+    }
+    const order = await Order.findById(id);
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+    if (order.paymentMethod !== 'CASH_ON_DELIVERY') {
+      return res.status(400).json({ success: false, message: 'Order is not cash on delivery' });
+    }
+    if (order.paymentStatus === 'COMPLETED') {
+      return res.status(200).json({ success: true, message: 'COD already collected', data: order });
+    }
+    order.paymentStatus = 'COMPLETED';
+    if (!order.paymentId) {
+      order.paymentId = `COD-${Date.now()}`;
+    }
+    await order.save();
+    return res.status(200).json({ success: true, message: 'COD payment collected', data: order });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -384,7 +443,7 @@ exports.trackOrder = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid order ID format' });
     }
     const order = await Order.findById(id).select(
-      'status paymentStatus totalAmount deliveryAddress estimatedDeliveryTime deliveryId createdAt estimatedPreparationTime items subtotal taxAmount deliveryFee',
+      'status paymentMethod paymentStatus totalAmount deliveryAddress estimatedDeliveryTime deliveryId createdAt estimatedPreparationTime items subtotal taxAmount deliveryFee',
     );
     if (!order) {
       return res.status(404).json({ success: false, message: 'Order not found' });
@@ -414,6 +473,7 @@ exports.trackOrder = async (req, res) => {
         orderId: order._id,
         status: order.status,
         statusLabel: TIMELINE_LABELS[canonicalStatus(order.status)] || order.status,
+        paymentMethod: order.paymentMethod,
         paymentStatus: order.paymentStatus,
         totalAmount: order.totalAmount,
         subtotal: order.subtotal,

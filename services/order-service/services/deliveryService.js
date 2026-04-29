@@ -25,6 +25,9 @@ exports.requestDriverAssignment = async (order) => {
         items: order.items.map(i => ({ name: i.name, quantity: i.quantity, price: i.price })),
         totalAmount: order.totalAmount
       },
+      paymentMethod: order.paymentMethod,
+      paymentStatus: order.paymentStatus,
+      codAmountDue: order.paymentMethod === 'CASH_ON_DELIVERY' ? order.totalAmount : 0,
       pickupLocation: {
         address: restaurant?.location?.address || `${order.deliveryAddress?.street || ''}, ${order.deliveryAddress?.city || ''}`.trim() || 'Restaurant',
         latitude: pickupLat,

@@ -47,6 +47,29 @@ const couponSchema = new mongoose.Schema({
     type: Boolean,
     default: true,
   },
+  createdByRole: {
+    type: String,
+    enum: ['admin', 'restaurantManager'],
+    default: 'admin',
+  },
+  createdByUserId: {
+    type: String,
+    default: null,
+  },
+  restaurantId: {
+    type: mongoose.Schema.Types.ObjectId,
+    default: null,
+  },
+  title: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  description: {
+    type: String,
+    default: '',
+    trim: true,
+  },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Coupon', couponSchema);

@@ -534,6 +534,51 @@ exports.updateDeliveryStatus = async (req, res) => {
   }
 };
 
+exports.collectDeliveryPayment = async (req, res) => {
+  try {
+    const driverId = req.params.id;
+    const deliveryId = req.params.deliveryId;
+    const driver = await Driver.findById(driverId);
+    if (!driver) {
+      return res.status(404).json({ error: 'Driver not found' });
+    }
+    const delivery = await Delivery.findById(deliveryId);
+    if (!delivery) {
+      return res.status(404).json({ error: 'Delivery not found' });
+    }
+    if (!delivery.driverId || String(delivery.driverId) !== String(driverId)) {
+      return res.status(403).json({ error: 'This delivery is not assigned to you' });
+    }
+    if (delivery.paymentMethod !== 'CASH_ON_DELIVERY') {
+      return res.status(400).json({ error: 'Payment collection is only needed for cash on delivery' });
+    }
+    if (delivery.paymentStatus === 'COMPLETED') {
+      return res.status(200).json({ message: 'Payment already collected', delivery });
+    }
+
+    const orderService = require('../services/orderService');
+    const orderUpdate = await orderService.collectCodPayment(delivery.orderId);
+    if (!orderUpdate?.success) {
+      return res.status(502).json({ error: 'Failed to sync COD payment with order service' });
+    }
+
+    delivery.paymentStatus = 'COMPLETED';
+    delivery.paymentCollectedAt = new Date();
+    await delivery.save();
+    return res.status(200).json({
+      message: 'COD payment collected successfully',
+      delivery: {
+        id: delivery._id,
+        paymentStatus: delivery.paymentStatus,
+        paymentCollectedAt: delivery.paymentCollectedAt,
+      },
+    });
+  } catch (err) {
+    logger.error(`Error collecting delivery payment: ${err.message}`);
+    return res.status(500).json({ error: 'Failed to collect payment' });
+  }
+};
+
 // Get all available drivers (admin only)
 exports.getAllDrivers = async (req, res) => {
   try {

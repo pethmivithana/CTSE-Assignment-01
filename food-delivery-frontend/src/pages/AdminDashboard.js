@@ -328,8 +328,23 @@ const AdminDashboard = () => {
 
         {tab === 'coupons' && (
           <div className="space-y-6 mb-8">
-            <div className="card p-6">
-              <h2 className="text-lg font-display font-semibold text-gray-800 mb-4">Create Coupon</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="card p-4">
+                <p className="text-xs uppercase tracking-wide text-gray-500">Total coupons</p>
+                <p className="text-2xl font-bold text-gray-800 mt-1">{coupons.length}</p>
+              </div>
+              <div className="card p-4">
+                <p className="text-xs uppercase tracking-wide text-gray-500">Active</p>
+                <p className="text-2xl font-bold text-emerald-600 mt-1">{coupons.filter((c) => c.isActive !== false && new Date(c.validUntil) >= new Date()).length}</p>
+              </div>
+              <div className="card p-4">
+                <p className="text-xs uppercase tracking-wide text-gray-500">Expired</p>
+                <p className="text-2xl font-bold text-amber-600 mt-1">{coupons.filter((c) => new Date(c.validUntil) < new Date()).length}</p>
+              </div>
+            </div>
+            <div className="card p-6 rounded-2xl border border-gray-100 shadow-sm">
+              <h2 className="text-lg font-display font-semibold text-gray-800 mb-1">Create Coupon</h2>
+              <p className="text-sm text-gray-500 mb-4">Configure promotions across all eligible customer checkouts.</p>
               <form onSubmit={createCoupon} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Code</label>
@@ -396,12 +411,12 @@ const AdminDashboard = () => {
                   />
                 </div>
                 <div className="sm:col-span-2 flex items-end">
-                  <button type="submit" className="btn-primary">Create Coupon</button>
+                  <button type="submit" className="btn-primary py-2.5">Create Coupon</button>
                 </div>
               </form>
             </div>
-            <div className="card overflow-hidden">
-              <h2 className="p-4 font-display font-semibold text-gray-800 border-b">Active Coupons</h2>
+            <div className="card overflow-hidden rounded-2xl border border-gray-100 shadow-sm">
+              <h2 className="p-4 font-display font-semibold text-gray-800 border-b bg-gray-50">Active Coupons</h2>
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
@@ -415,12 +430,19 @@ const AdminDashboard = () => {
                   </thead>
                   <tbody>
                     {coupons.map((c) => (
-                      <tr key={c._id} className="border-b border-gray-100 hover:bg-gray-50">
+                      <tr key={c._id} className="border-b border-gray-100 hover:bg-gray-50/80">
                         <td className="py-3 px-4 font-medium">{c.code}</td>
-                        <td className="py-3 px-4">{c.discountType}</td>
+                        <td className="py-3 px-4">
+                          <span className="text-xs px-2 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">{c.discountType}</span>
+                        </td>
                         <td className="py-3 px-4">{c.discountType === 'PERCENTAGE' ? `${c.discountValue}%` : `$${c.discountValue}`}</td>
                         <td className="py-3 px-4">{c.usedCount} {c.usageLimit ? `/ ${c.usageLimit}` : ''}</td>
-                        <td className="py-3 px-4 text-sm text-gray-600">{new Date(c.validUntil).toLocaleDateString()}</td>
+                        <td className="py-3 px-4 text-sm text-gray-600">
+                          <span className={`px-2 py-1 rounded-full text-xs ${new Date(c.validUntil) >= new Date() ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                            {new Date(c.validUntil) >= new Date() ? 'Active' : 'Expired'}
+                          </span>
+                          <span className="ml-2">{new Date(c.validUntil).toLocaleDateString()}</span>
+                        </td>
                       </tr>
                     ))}
                   </tbody>

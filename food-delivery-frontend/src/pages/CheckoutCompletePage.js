@@ -4,6 +4,9 @@ import { api } from '../services/api';
 import { useCart } from '../context/CartContext';
 
 const PENDING_ORDER_KEY = 'feedo_pending_order';
+const POST_ORDER_MESSAGE_KEY = 'postOrderMessage';
+const POST_ORDER_MESSAGE =
+  'Order placed successfully! Keep an eye on your email and in-app notifications for order status updates.';
 
 const CheckoutCompletePage = () => {
   const [searchParams] = useSearchParams();
@@ -34,6 +37,7 @@ const CheckoutCompletePage = () => {
         };
         await api.createOrder(orderPayload);
         sessionStorage.removeItem(PENDING_ORDER_KEY);
+        sessionStorage.setItem(POST_ORDER_MESSAGE_KEY, POST_ORDER_MESSAGE);
         clearCart();
         setStatus('success');
         setTimeout(() => navigate('/orders'), 1500);

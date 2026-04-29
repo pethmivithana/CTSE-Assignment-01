@@ -7,13 +7,6 @@ router.post('/create', paymentController.createSimulated);
 router.post('/cod', paymentController.createCod);
 router.post('/verify', paymentController.verify);
 
-router.get('/wallet/balance', paymentController.walletBalance);
-router.post('/wallet/topup', paymentController.walletTopup);
-router.post('/wallet/pay', paymentController.walletPay);
-
-router.post('/paypal/create-order', paymentController.paypalCreate);
-router.post('/paypal/capture', paymentController.paypalCapture);
-
 router.get('/history/me', paymentController.history);
 router.get('/receipt/:paymentId', paymentController.receipt);
 

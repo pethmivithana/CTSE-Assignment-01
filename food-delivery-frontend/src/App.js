@@ -14,8 +14,6 @@ import CheckoutPage from './pages/CheckoutPage';
 import CheckoutCompletePage from './pages/CheckoutCompletePage';
 import OrdersPage from './pages/OrdersPage';
 import OrderTrackPage from './pages/OrderTrackPage';
-import PaymentsHistoryPage from './pages/PaymentsHistoryPage';
-import PayPalReturnPage from './pages/PayPalReturnPage';
 import ProfilePage from './pages/ProfilePage';
 import NotificationsPage from './pages/NotificationsPage';
 import EditProfilePage from './pages/EditProfilePage';
@@ -54,7 +52,6 @@ function App() {
                   <Route path="/profile" element={<ProfilePage />} />
                   <Route path="/notifications" element={<NotificationsPage />} />
                   <Route path="/profile/edit" element={<EditProfilePage />} />
-                  <Route path="/profile/payments" element={<PaymentsHistoryPage />} />
                   <Route path="/profile/addresses" element={<AddressManagementPage />} />
                   <Route path="/profile/saved-restaurants" element={<SavedRestaurantsPage />} />
                   <Route path="/profile/favorites" element={<FavoritesPage />} />
