@@ -19,15 +19,6 @@ export const AuthProvider = ({ children }) => {
           return;
         }
 
-        const cachedUserRaw = localStorage.getItem(USER_CACHE_KEY);
-        if (cachedUserRaw) {
-          try {
-            setUser(JSON.parse(cachedUserRaw));
-          } catch (_) {
-            localStorage.removeItem(USER_CACHE_KEY);
-          }
-        }
-
         const response = await fetch(`${API_URL}/auth/profile`, {
           headers: {
             'Authorization': `Bearer ${token}`
