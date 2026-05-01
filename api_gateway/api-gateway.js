@@ -135,6 +135,19 @@ app.use('/auth/verify', (req, res) => {
   proxy.web(req, res, { target: USER_SERVICE_URL });
 });
 
+// Must be registered before generic /auth proxy; otherwise /auth prefix is stripped and becomes /profile on user-service.
+app.get('/auth/profile', authenticate, (req, res) => {
+  req.url = req.originalUrl;
+  proxy.web(req, res, {
+      target: USER_SERVICE_URL,
+      headers: {
+          ...req.headers,
+          'x-user-id': req.user.id,
+          'x-user-role': req.user.role
+      }
+  });
+});
+
 app.use('/auth', (req, res) => {
   proxy.web(req, res, { target: USER_SERVICE_URL });
 });
@@ -199,16 +212,6 @@ const proxyToUserService = async (req, res) => {
   }
 };
 app.use('/api/users', authenticate, proxyToUserService);
-
-app.get('/auth/profile', authenticate, (req, res) => {
-  proxy.web(req, res, { 
-      target: USER_SERVICE_URL,
-      headers: {
-          'x-user-id': req.user.id,
-          'x-user-role': req.user.role
-      }
-  });
-});
 
 // Restaurant Service - direct proxy (public, no auth) - avoids http-proxy path stripping
 const proxyToRestaurantService = async (req, res) => {

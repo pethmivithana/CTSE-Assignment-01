@@ -14,8 +14,23 @@ const stripePromise = process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY
 const PENDING_ORDER_KEY = 'feedo_pending_order';
 const TAX_RATE = Number(process.env.REACT_APP_ORDER_TAX_RATE ?? 0.05);
 const POST_ORDER_MESSAGE_KEY = 'postOrderMessage';
+const STRIPE_CURRENCY = (process.env.REACT_APP_STRIPE_CURRENCY || 'LKR').toUpperCase();
 const POST_ORDER_MESSAGE =
   'Order placed successfully! Keep an eye on your email and in-app notifications for order status updates.';
+
+function toFriendlyPaymentIntentError(err) {
+  const raw = String(err?.message || '').trim();
+  const compact = raw.replace(/\s+/g, ' ');
+  if (!compact) return 'Could not start Stripe card checkout. Please try again.';
+  if (compact.toLowerCase().includes('currency')) {
+    return 'Card checkout is temporarily unavailable for this currency. Please try cash on delivery for now.';
+  }
+  if (compact.toLowerCase().includes('publishable key') || compact.toLowerCase().includes('secret key')) {
+    return 'Stripe keys are not configured correctly. Please contact support.';
+  }
+  if (compact.length > 180) return 'Could not start Stripe card checkout right now. Please try again.';
+  return compact;
+}
 
 /** Aligns with order-service: saved address sends addressId + deliveryAddress for User Service validation */
 function buildDeliveryPayload({ addresses, street, city, postalCode, useNewAddress, selectedAddressId }) {
@@ -50,6 +65,7 @@ const StripeCheckoutForm = ({
   postalCode, setPostalCode, useNewAddress, setUseNewAddress, contactPhone, setContactPhone,
   paymentMethod, setPaymentMethod, couponCode, discount, restaurant, user, cart, clearCart,
   getTotalPrice, couponError, couponLoading, clientSecret, deliveryFee = 150, orderTotal = 0,
+  onOrderPlaced,
 }) => {
   const navigate = useNavigate();
   const stripe = useStripe();
@@ -122,9 +138,7 @@ const StripeCheckoutForm = ({
           })
           .catch(() => {});
       }
-      clearCart();
-      sessionStorage.setItem(POST_ORDER_MESSAGE_KEY, POST_ORDER_MESSAGE);
-      navigate('/orders');
+      onOrderPlaced?.();
     } catch (err) {
       setError(err.message || 'Failed to place order');
     } finally {
@@ -268,6 +282,7 @@ const SimpleCheckoutForm = ({
   postalCode, setPostalCode, useNewAddress, setUseNewAddress, contactPhone, setContactPhone,
   paymentMethod, setPaymentMethod, couponCode, discount, restaurant, user, cart, clearCart,
   getTotalPrice, couponError, couponLoading, paymentIntentError, deliveryFee = 150, orderTotal = 0,
+  onOrderPlaced,
 }) => {
   const navigate = useNavigate();
   const [isProcessing, setIsProcessing] = useState(false);
@@ -318,9 +333,7 @@ const SimpleCheckoutForm = ({
           })
           .catch(() => {});
       }
-      clearCart();
-      sessionStorage.setItem(POST_ORDER_MESSAGE_KEY, POST_ORDER_MESSAGE);
-      navigate('/orders');
+      onOrderPlaced?.();
     } catch (err) {
       setError(err.message || 'Failed to place order');
     } finally {
@@ -450,6 +463,7 @@ const CheckoutPage = () => {
   const [paymentIntentError, setPaymentIntentError] = useState('');
   const [deliveryFee, setDeliveryFee] = useState(150);
   const [eligibleCoupons, setEligibleCoupons] = useState([]);
+  const [orderPlacedNotice, setOrderPlacedNotice] = useState('');
 
   useEffect(() => {
     if (!restaurant || (!street && (!addresses.length || !selectedAddressId))) {
@@ -543,14 +557,16 @@ const CheckoutPage = () => {
     }
     setPaymentIntentError('');
     let mounted = true;
-    const idem = `checkout_${user?._id || user?.id}_${restaurant?._id || restaurant?.id || 'r'}_${orderTotal.toFixed(2)}`;
+    const uniq = `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+    const idem = `checkout_${user?._id || user?.id || 'u'}_${restaurant?._id || restaurant?.id || 'r'}_${uniq}`;
+    const orderRef = `order_${uniq}`;
     api
       .createPaymentIntent(
         {
           customerId: user?._id || user?.id,
           amount: orderTotal,
-          currency: 'LKR',
-          orderRef: `order_${Date.now()}`,
+          currency: STRIPE_CURRENCY,
+          orderRef,
           metadata: { restaurantId: restaurant?._id || restaurant?.id },
         },
         { idempotencyKey: idem },
@@ -565,12 +581,25 @@ const CheckoutPage = () => {
         }
       })
       .catch((err) => {
-        if (mounted) setPaymentIntentError(err.message || 'Could not connect to payment service. Ensure it is running on port 3006.');
+        if (mounted) {
+          setClientSecret('');
+          setPaymentIntentError(
+            toFriendlyPaymentIntentError(err) ||
+              'Could not connect to payment service. Ensure it is running on port 3006.',
+          );
+        }
       });
     return () => { mounted = false; };
   }, [isCardForStripe, orderTotal, user, restaurant]);
 
   const options = clientSecret ? { clientSecret } : {};
+  const handleOrderPlaced = () => {
+    clearCart();
+    setOrderPlacedNotice(POST_ORDER_MESSAGE);
+    sessionStorage.setItem(POST_ORDER_MESSAGE_KEY, POST_ORDER_MESSAGE);
+    setTimeout(() => navigate('/orders'), 700);
+  };
+
   const formProps = {
     addresses,
     selectedAddressId,
@@ -617,6 +646,7 @@ const CheckoutPage = () => {
     paymentIntentError,
     deliveryFee,
     finalAmount: orderTotal,
+    onOrderPlaced: handleOrderPlaced,
   };
 
   const form = stripePromise && clientSecret ? (
@@ -629,6 +659,11 @@ const CheckoutPage = () => {
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+      {orderPlacedNotice && (
+        <div className="fixed top-20 right-4 z-50 max-w-md rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900 shadow-lg">
+          {orderPlacedNotice}
+        </div>
+      )}
       <div className="mb-8">
         <h1 className="text-2xl md:text-3xl font-display font-bold text-gray-800">Checkout</h1>
         <p className="text-sm text-gray-500 mt-1">Review your order, choose payment, and place it securely.</p>

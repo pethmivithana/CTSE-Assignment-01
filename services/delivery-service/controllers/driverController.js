@@ -14,6 +14,22 @@ function ensureDeliveryOtp(delivery) {
   }
 }
 
+function normalizeValue(value) {
+  return String(value || '')
+    .trim()
+    .toUpperCase()
+    .replace(/[\s-]+/g, '_');
+}
+
+function isCashOnDelivery(paymentMethod) {
+  const normalized = normalizeValue(paymentMethod);
+  return normalized === 'CASH_ON_DELIVERY' || normalized === 'COD';
+}
+
+function isPaymentCompleted(paymentStatus) {
+  return normalizeValue(paymentStatus) === 'COMPLETED';
+}
+
 // Register a new driver from user management service
 exports.registerDriver = async (req, res) => {
   try {
@@ -22,10 +38,42 @@ exports.registerDriver = async (req, res) => {
       return res.status(400).json({ error: error.details[0].message });
     }
 
-    // Check if driver already exists
+    // Check if driver already exists by user linkage
     const existingDriver = await Driver.findOne({ userId: req.body.userId });
     if (existingDriver) {
-      return res.status(409).json({ error: 'Driver already registered' });
+      return res.status(409).json({
+        error: 'Driver already registered',
+        driver: {
+          id: existingDriver._id,
+          name: existingDriver.name,
+          status: existingDriver.status,
+          isVerified: existingDriver.isVerified,
+        },
+      });
+    }
+
+    // Recovery path: if an old record exists for the same email (e.g., account re-created),
+    // relink it to the current userId instead of failing with duplicate key error.
+    const existingByEmail = await Driver.findOne({ email: req.body.email });
+    if (existingByEmail) {
+      existingByEmail.userId = req.body.userId;
+      existingByEmail.name = req.body.name;
+      existingByEmail.phone = req.body.phone;
+      existingByEmail.vehicleType = req.body.vehicleType;
+      existingByEmail.vehicleDetails = req.body.vehicleDetails;
+      existingByEmail.isVerified = req.body.isVerified ?? existingByEmail.isVerified ?? true;
+      await existingByEmail.save();
+
+      logger.info(`Driver relinked by email: ${existingByEmail._id}`);
+      return res.status(200).json({
+        message: 'Driver already existed and was linked successfully',
+        driver: {
+          id: existingByEmail._id,
+          name: existingByEmail.name,
+          status: existingByEmail.status,
+          isVerified: existingByEmail.isVerified,
+        },
+      });
     }
 
     // Create new driver
@@ -52,6 +100,23 @@ exports.registerDriver = async (req, res) => {
       }
     });
   } catch (err) {
+    if (err?.code === 11000) {
+      // Race-safe fallback: if two sync attempts happen together, treat duplicate as already-registered.
+      const linked = await Driver.findOne({
+        $or: [{ userId: req.body.userId }, { email: req.body.email }],
+      });
+      if (linked) {
+        return res.status(409).json({
+          error: 'Driver already registered',
+          driver: {
+            id: linked._id,
+            name: linked.name,
+            status: linked.status,
+            isVerified: linked.isVerified,
+          },
+        });
+      }
+    }
     logger.error(`Error registering driver: ${err.message}`);
     return res.status(500).json({ error: 'Failed to register driver' });
   }
@@ -449,6 +514,11 @@ exports.updateDeliveryStatus = async (req, res) => {
         return res.status(400).json({ error: 'Invalid delivery confirmation code from customer' });
       }
     }
+    if (status === 'DELIVERED' && isCashOnDelivery(delivery.paymentMethod) && !isPaymentCompleted(delivery.paymentStatus)) {
+      return res.status(400).json({
+        error: 'Please collect and accept cash payment before completing this delivery',
+      });
+    }
 
     delivery.updateStatus(status, note || '');
     if (status === 'ON_THE_WAY') {
@@ -549,10 +619,10 @@ exports.collectDeliveryPayment = async (req, res) => {
     if (!delivery.driverId || String(delivery.driverId) !== String(driverId)) {
       return res.status(403).json({ error: 'This delivery is not assigned to you' });
     }
-    if (delivery.paymentMethod !== 'CASH_ON_DELIVERY') {
+    if (!isCashOnDelivery(delivery.paymentMethod)) {
       return res.status(400).json({ error: 'Payment collection is only needed for cash on delivery' });
     }
-    if (delivery.paymentStatus === 'COMPLETED') {
+    if (isPaymentCompleted(delivery.paymentStatus)) {
       return res.status(200).json({ message: 'Payment already collected', delivery });
     }
 

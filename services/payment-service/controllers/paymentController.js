@@ -7,6 +7,7 @@ const { notifyOrderPayment, notifyPaymentNotification } = require('../services/o
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
 const stripe = STRIPE_SECRET_KEY ? require('stripe')(STRIPE_SECRET_KEY) : null;
+const STRIPE_DEFAULT_CURRENCY = (process.env.STRIPE_DEFAULT_CURRENCY || 'lkr').toLowerCase();
 
 const shouldFailPayment = () => process.env.FAIL_PAYMENTS === 'true';
 const ENABLE_WALLET_TOPUP = process.env.ENABLE_WALLET_TOPUP === 'true';
@@ -74,9 +75,10 @@ exports.createIntent = async (req, res) => {
       }
     }
 
+    const requestedCurrency = String(currency || STRIPE_DEFAULT_CURRENCY || 'usd').toLowerCase();
     const intentParams = {
       amount: amountCents,
-      currency: (currency || 'lkr').toLowerCase(),
+      currency: requestedCurrency,
       payment_method_types: ['card'],
       metadata: meta,
     };
@@ -93,7 +95,7 @@ exports.createIntent = async (req, res) => {
       orderRef,
       orderId: orderId ? String(orderId) : undefined,
       amount: Number(amount),
-      currency: (currency || 'LKR').toUpperCase(),
+      currency: requestedCurrency.toUpperCase(),
       paymentMethod: 'CREDIT_CARD',
       paymentProvider: 'STRIPE',
       status: 'PENDING',
@@ -116,7 +118,13 @@ exports.createIntent = async (req, res) => {
     });
   } catch (err) {
     console.error('Stripe create-intent error:', err);
-    res.status(500).json({ success: false, message: err.message || 'Failed to create payment intent' });
+    const rawMsg = String(err?.message || 'Failed to create payment intent');
+    const lower = rawMsg.toLowerCase();
+    const isCurrencyIssue = lower.includes('currency');
+    const message = isCurrencyIssue
+      ? 'Stripe could not create a card payment for the configured currency. Please set STRIPE_DEFAULT_CURRENCY (for example: usd).'
+      : rawMsg;
+    res.status(500).json({ success: false, message });
   }
 };
 

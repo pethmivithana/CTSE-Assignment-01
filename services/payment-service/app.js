@@ -10,8 +10,22 @@ const PORT = process.env.PORT || 3006;
 
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/payment_db';
 
+function withRetryWritesDisabled(uri) {
+  try {
+    const parsed = new URL(uri);
+    parsed.searchParams.set('retryWrites', 'false');
+    return parsed.toString();
+  } catch (_) {
+    // Fallback for malformed/non-standard URI values
+    if (uri.includes('?')) return `${uri}&retryWrites=false`;
+    return `${uri}?retryWrites=false`;
+  }
+}
+
+const SAFE_MONGO_URI = withRetryWritesDisabled(MONGO_URI);
+
 mongoose
-  .connect(MONGO_URI)
+  .connect(SAFE_MONGO_URI)
   .then(() => console.log('Payment service connected to MongoDB'))
   .catch((err) => console.error('MongoDB connection error:', err));
 

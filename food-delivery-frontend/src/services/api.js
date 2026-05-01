@@ -178,6 +178,12 @@ export const api = {
     if (!res.ok) throw new Error('Failed to fetch analytics');
     return res.json();
   },
+  getAdminOrderAnalytics: async () => {
+    const res = await fetch(`${API_URL}/api/orders/admin/analytics`, { headers: getAuthHeaders() });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.message || 'Failed to fetch admin analytics');
+    return data;
+  },
 
   // Restaurant manager - my restaurant
   createMyRestaurant: async () => {

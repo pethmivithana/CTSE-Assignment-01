@@ -8,6 +8,11 @@ const userClient = require('../services/userClient');
 
 const TAX_RATE = Number(process.env.ORDER_TAX_RATE || 0.05);
 const CANCEL_WINDOW_MINUTES = Number(process.env.ORDER_CANCEL_WINDOW_MINUTES || 15);
+const REVENUE_SHARES = Object.freeze({
+  RESTAURANT: 0.75,
+  PLATFORM: 0.15,
+  DRIVER: 0.1,
+});
 
 /** Map legacy / API aliases to stored canonical status */
 function canonicalStatus(s) {
@@ -498,22 +503,23 @@ exports.getRestaurantAnalytics = async (req, res) => {
       return res.status(400).json({ success: false, message: 'No restaurant associated' });
     }
     const rid = mongoose.Types.ObjectId.isValid(restaurantId) ? new mongoose.Types.ObjectId(restaurantId) : restaurantId;
-    const orders = await Order.find({ restaurantId: rid, status: 'DELIVERED' });
+    const orders = await Order.find({ restaurantId: rid });
+    const revenueOrders = orders.filter((o) => o.status === 'DELIVERED');
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const weekStart = new Date(todayStart);
     weekStart.setDate(weekStart.getDate() - 7);
-    const dailyRevenue = orders
+    const dailyRevenue = revenueOrders
 
       .filter((o) => new Date(o.createdAt) >= todayStart)
 
-      .reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+      .reduce((sum, o) => sum + (o.totalAmount || 0) * REVENUE_SHARES.RESTAURANT, 0);
 
-    const weeklyRevenue = orders
+    const weeklyRevenue = revenueOrders
 
       .filter((o) => new Date(o.createdAt) >= weekStart)
 
-      .reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+      .reduce((sum, o) => sum + (o.totalAmount || 0) * REVENUE_SHARES.RESTAURANT, 0);
 
     const itemCounts = {};
     orders.forEach((o) => {
@@ -529,13 +535,72 @@ exports.getRestaurantAnalytics = async (req, res) => {
     res.status(200).json({
       dailyRevenue,
       weeklyRevenue,
-      dailyOrders: orders.filter((o) => new Date(o.createdAt) >= todayStart).length,
-      weeklyOrders: orders.filter((o) => new Date(o.createdAt) >= weekStart).length,
+      dailyOrders: revenueOrders.filter((o) => new Date(o.createdAt) >= todayStart).length,
+      weeklyOrders: revenueOrders.filter((o) => new Date(o.createdAt) >= weekStart).length,
+      dailyGross: revenueOrders
+        .filter((o) => new Date(o.createdAt) >= todayStart)
+        .reduce((sum, o) => sum + (o.totalAmount || 0), 0),
+      weeklyGross: revenueOrders
+        .filter((o) => new Date(o.createdAt) >= weekStart)
+        .reduce((sum, o) => sum + (o.totalAmount || 0), 0),
+      shareConfig: {
+        restaurant: REVENUE_SHARES.RESTAURANT,
+        platform: REVENUE_SHARES.PLATFORM,
+        driver: REVENUE_SHARES.DRIVER,
+      },
       popularItems,
       totalOrders: orders.length,
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.getAdminRevenueAnalytics = async (req, res) => {
+  try {
+    const orders = await Order.find({ status: 'DELIVERED' }).select('totalAmount createdAt');
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const weekStart = new Date(todayStart);
+    weekStart.setDate(weekStart.getDate() - 7);
+
+    const sumGross = (list) => list.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+    const deliveredToday = orders.filter((o) => new Date(o.createdAt) >= todayStart);
+    const deliveredWeek = orders.filter((o) => new Date(o.createdAt) >= weekStart);
+
+    const totalGross = sumGross(orders);
+    const totalPlatformRevenue = totalGross * REVENUE_SHARES.PLATFORM;
+
+    return res.status(200).json({
+      deliveredOrders: orders.length,
+      shareConfig: {
+        restaurant: REVENUE_SHARES.RESTAURANT,
+        platform: REVENUE_SHARES.PLATFORM,
+        driver: REVENUE_SHARES.DRIVER,
+      },
+      totals: {
+        gross: totalGross,
+        restaurant: totalGross * REVENUE_SHARES.RESTAURANT,
+        platform: totalPlatformRevenue,
+        driver: totalGross * REVENUE_SHARES.DRIVER,
+      },
+      today: {
+        deliveredOrders: deliveredToday.length,
+        gross: sumGross(deliveredToday),
+        restaurant: sumGross(deliveredToday) * REVENUE_SHARES.RESTAURANT,
+        platform: sumGross(deliveredToday) * REVENUE_SHARES.PLATFORM,
+        driver: sumGross(deliveredToday) * REVENUE_SHARES.DRIVER,
+      },
+      week: {
+        deliveredOrders: deliveredWeek.length,
+        gross: sumGross(deliveredWeek),
+        restaurant: sumGross(deliveredWeek) * REVENUE_SHARES.RESTAURANT,
+        platform: sumGross(deliveredWeek) * REVENUE_SHARES.PLATFORM,
+        driver: sumGross(deliveredWeek) * REVENUE_SHARES.DRIVER,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 

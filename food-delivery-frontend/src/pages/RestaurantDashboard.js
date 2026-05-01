@@ -115,6 +115,7 @@ const RestaurantDashboard = () => {
           <div>
             <h1 className="dashboard-title">Restaurant Dashboard</h1>
             <p className="dashboard-subtitle">{restaurant?.name || (loading ? 'Loading...' : 'Your restaurant')}</p>
+            {restaurant?.description && <p className="text-sm text-gray-500 mt-1 max-w-2xl">{restaurant.description}</p>}
           </div>
           {restaurant && (
             <OpenCloseToggle restaurant={restaurant} onUpdate={loadData} />
@@ -765,6 +766,7 @@ function MenuTab({ restaurant, categories, menuItems, onUpdate }) {
                       <button type="button" onClick={() => setSelectedCategoryId(c._id)} className="flex-1 min-w-0 text-left">
                         <span className="font-medium text-gray-900 block truncate">{c.name}</span>
                         <span className="text-xs text-gray-500">{count} item{count !== 1 ? 's' : ''}</span>
+                        {c.description && <span className="text-xs text-gray-500 block truncate mt-0.5">{c.description}</span>}
                       </button>
                       <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button type="button" onClick={(e) => { e.stopPropagation(); setEditingCategory(c); setCategoryForm({ name: c.name, description: c.description || '' }); setFormError(''); }} className="p-1.5 rounded-md text-gray-400 hover:text-primary-600 hover:bg-primary-50" title="Edit category">
@@ -790,6 +792,7 @@ function MenuTab({ restaurant, categories, menuItems, onUpdate }) {
             <div>
               <h3 className="font-semibold text-gray-800">{selectedCategory ? `${selectedCategory.name} • ${filteredItems.length} item${filteredItems.length !== 1 ? 's' : ''}` : 'All items'}</h3>
               <p className="text-sm text-gray-500 mt-0.5">Manage menu items in this category</p>
+              {selectedCategory?.description && <p className="text-sm text-gray-500 mt-1">{selectedCategory.description}</p>}
             </div>
             <button onClick={openAddItem} disabled={!hasCategories} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary-500 text-white font-medium text-sm hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
@@ -826,6 +829,7 @@ function MenuTab({ restaurant, categories, menuItems, onUpdate }) {
                         <div className="min-w-0 sm:hidden">
                           <h4 className="font-semibold text-gray-900 truncate">{item.foodName}</h4>
                           {!selectedCategory && <p className="text-sm text-gray-500">{item.category}</p>}
+                          {item.description && <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{item.description}</p>}
                         </div>
                       </div>
                       <div className="flex-1 min-w-0 space-y-3">
@@ -833,6 +837,7 @@ function MenuTab({ restaurant, categories, menuItems, onUpdate }) {
                           <div className="hidden sm:block">
                             <h4 className="font-semibold text-gray-900">{item.foodName}</h4>
                             {!selectedCategory && <p className="text-sm text-gray-500 mt-0.5">{item.category}</p>}
+                            {item.description && <p className="text-sm text-gray-500 mt-1 line-clamp-2">{item.description}</p>}
                           </div>
                           <div className="flex flex-wrap items-center gap-2">
                             <button
@@ -984,11 +989,11 @@ function AnalyticsTab({ analytics, reviews }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       <div className="card p-6">
-        <p className="text-sm text-gray-600">Today's Revenue</p>
+        <p className="text-sm text-gray-600">Today's Restaurant Earnings (75%)</p>
         <p className="text-2xl font-bold text-primary-600">LKR {analytics.dailyRevenue?.toFixed(2) || 0}</p>
       </div>
       <div className="card p-6">
-        <p className="text-sm text-gray-600">Weekly Revenue</p>
+        <p className="text-sm text-gray-600">Weekly Restaurant Earnings (75%)</p>
         <p className="text-2xl font-bold text-primary-600">LKR {analytics.weeklyRevenue?.toFixed(2) || 0}</p>
       </div>
       <div className="card p-6">
@@ -1000,6 +1005,9 @@ function AnalyticsTab({ analytics, reviews }) {
         <p className="text-2xl font-bold">{analytics.weeklyOrders || 0}</p>
       </div>
       <div className="card p-6 col-span-full">
+        <p className="text-xs text-gray-500 mb-3">
+          Revenue split per delivered order: Restaurant 75% · Platform 15% · Driver 10%.
+        </p>
         <h3 className="font-semibold mb-4">Popular Items</h3>
         <ul className="space-y-2">
           {(analytics.popularItems || []).slice(0, 10).map((item, i) => (

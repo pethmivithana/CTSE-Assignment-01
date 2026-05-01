@@ -4,6 +4,11 @@ const DUPLICATE_WINDOW_MS = Number(process.env.PAYMENT_DUPLICATE_WINDOW_MS || 5 
 const VELOCITY_WINDOW_MS = Number(process.env.PAYMENT_VELOCITY_WINDOW_MS || 60 * 60 * 1000);
 const HIGH_AMOUNT_LKR = Number(process.env.PAYMENT_HIGH_AMOUNT_LKR || 50000);
 
+function isCosmosOrderByIndexError(err) {
+  const msg = String(err?.message || '').toLowerCase();
+  return msg.includes('index path corresponding to the specified order-by item is excluded');
+}
+
 /**
  * Duplicate: same customer + same amount + same orderRef (or empty) within window, non-failed.
  */
@@ -16,7 +21,15 @@ async function findDuplicateTransaction(customerId, amount, orderRef) {
     status: { $in: ['PENDING', 'COMPLETED', 'PARTIALLY_REFUNDED'] },
   };
   if (orderRef) q.orderRef = String(orderRef);
-  return Payment.findOne(q).sort({ createdAt: -1 });
+  // Cosmos Mongo can reject ORDER BY when the sort field is excluded from indexing.
+  // Duplicate check only needs existence within the recent window, so avoid sort().
+  try {
+    return await Payment.findOne(q);
+  } catch (err) {
+    // Keep checkout flow available on Cosmos indexing edge-cases.
+    if (isCosmosOrderByIndexError(err)) return null;
+    throw err;
+  }
 }
 
 /**
@@ -36,11 +49,16 @@ async function computeRiskScore({ customerId, amount, paymentMethod }) {
   }
 
   const since = new Date(Date.now() - VELOCITY_WINDOW_MS);
-  const recentCount = await Payment.countDocuments({
-    customerId: String(customerId),
-    createdAt: { $gte: since },
-    status: { $in: ['COMPLETED', 'PENDING'] },
-  });
+  let recentCount = 0;
+  try {
+    recentCount = await Payment.countDocuments({
+      customerId: String(customerId),
+      createdAt: { $gte: since },
+      status: { $in: ['COMPLETED', 'PENDING'] },
+    });
+  } catch (err) {
+    if (!isCosmosOrderByIndexError(err)) throw err;
+  }
   if (recentCount >= 8) {
     score += 30;
     factors.push('HIGH_VELOCITY');

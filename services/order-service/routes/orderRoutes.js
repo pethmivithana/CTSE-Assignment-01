@@ -8,6 +8,7 @@ const {
   authMiddleware, 
   customerMiddleware, 
   restaurantManagerMiddleware,
+  adminMiddleware,
 } = require('../middleware/authMiddleware');
 const { requireInternalKey } = require('../middleware/internalAuth');
 
@@ -59,6 +60,13 @@ router.get(
   authMiddleware,
   restaurantManagerMiddleware,
   orderController.getRestaurantAnalytics
+);
+
+router.get(
+  '/admin/analytics',
+  authMiddleware,
+  adminMiddleware,
+  orderController.getAdminRevenueAnalytics
 );
 
 // Restaurant managers get their restaurant's orders

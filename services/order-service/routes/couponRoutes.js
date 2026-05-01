@@ -3,6 +3,7 @@ const router = express.Router();
 const Coupon = require('../models/Coupon');
 const { authMiddleware } = require('../middleware/authMiddleware');
 const mongoose = require('mongoose');
+const restaurantClient = require('../services/restaurantClient');
 
 router.use(authMiddleware);
 
@@ -10,6 +11,27 @@ const isAdmin = (req) => req.user?.role === 'admin';
 const isRestaurantManager = (req) => req.user?.role === 'restaurantManager';
 const canManageCoupons = (req) => isAdmin(req) || isRestaurantManager(req);
 const managerRestaurantId = (req) => req.user?.restaurantInfo?._id || req.user?.restaurantInfo?.restaurantId;
+
+async function enrichWithRestaurantNames(coupons = []) {
+  const uniqueRestaurantIds = [
+    ...new Set(
+      coupons
+        .map((c) => (c.restaurantId ? String(c.restaurantId) : null))
+        .filter(Boolean),
+    ),
+  ];
+  const nameMap = {};
+  await Promise.all(
+    uniqueRestaurantIds.map(async (rid) => {
+      const rest = await restaurantClient.getRestaurantById(rid).catch(() => null);
+      nameMap[rid] = rest?.name || null;
+    }),
+  );
+  return coupons.map((coupon) => ({
+    ...coupon,
+    restaurantName: coupon.restaurantId ? nameMap[String(coupon.restaurantId)] || null : null,
+  }));
+}
 
 router.get('/eligible', async (req, res) => {
   try {
@@ -52,7 +74,8 @@ router.get('/', async (req, res) => {
     // Fetch first, then sort in-memory to keep endpoint stable.
     const coupons = await Coupon.find(query).lean();
     coupons.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
-    res.json({ success: true, data: coupons });
+    const enriched = await enrichWithRestaurantNames(coupons);
+    res.json({ success: true, data: enriched });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -91,7 +114,11 @@ router.post('/', async (req, res) => {
       restaurantId: scopedRestaurantId,
     });
     await coupon.save();
-    res.status(201).json({ success: true, data: coupon });
+    const couponObj = coupon.toObject();
+    const restaurantName = couponObj.restaurantId
+      ? (await restaurantClient.getRestaurantById(couponObj.restaurantId).catch(() => null))?.name || null
+      : null;
+    res.status(201).json({ success: true, data: { ...couponObj, restaurantName } });
   } catch (err) {
     if (err.code === 11000) return res.status(400).json({ success: false, message: 'Coupon code already exists' });
     res.status(500).json({ success: false, message: err.message });

@@ -41,6 +41,8 @@ const OrdersPage = () => {
   const [error, setError] = useState(null);
   const [actionId, setActionId] = useState(null);
   const [orderToast, setOrderToast] = useState('');
+  const [feedbackToast, setFeedbackToast] = useState(null);
+  const [cancelDialogOrder, setCancelDialogOrder] = useState(null);
 
   const refresh = async () => {
     const data = await api.getMyOrders();
@@ -88,6 +90,12 @@ const OrdersPage = () => {
     return () => clearTimeout(id);
   }, []);
 
+  useEffect(() => {
+    if (!feedbackToast) return undefined;
+    const id = setTimeout(() => setFeedbackToast(null), 4500);
+    return () => clearTimeout(id);
+  }, [feedbackToast]);
+
   const getStatusBadge = (status) => {
     const config = statusConfig[status] || { label: status, class: 'bg-gray-100 text-gray-700' };
     return <span className={`px-3 py-1 rounded-full text-xs font-medium ${config.class}`}>{config.label}</span>;
@@ -116,15 +124,16 @@ const OrdersPage = () => {
   };
 
   const handleCancel = async (order) => {
-    if (!window.confirm('Cancel this order?')) return;
     setActionId(order._id);
     try {
       await api.cancelOrder(order._id);
       await refresh();
+      setFeedbackToast({ type: 'success', message: 'Order cancelled successfully.' });
     } catch (e) {
-      alert(e.message || 'Could not cancel');
+      setFeedbackToast({ type: 'error', message: e.message || 'Could not cancel the order.' });
     } finally {
       setActionId(null);
+      setCancelDialogOrder(null);
     }
   };
 
@@ -136,7 +145,7 @@ const OrdersPage = () => {
       loadReorderCart(restaurant, data.items || []);
       navigate(`/restaurants/${data.restaurantId}`);
     } catch (e) {
-      alert(e.message || 'Could not reorder');
+      setFeedbackToast({ type: 'error', message: e.message || 'Could not reorder right now.' });
     } finally {
       setActionId(null);
     }
@@ -156,6 +165,34 @@ const OrdersPage = () => {
               onClick={() => setOrderToast('')}
               className="text-emerald-700 hover:text-emerald-900"
               aria-label="Dismiss order message"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
+      {feedbackToast && (
+        <div
+          className={`mb-6 rounded-xl border shadow-sm ${
+            feedbackToast.type === 'success'
+              ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+              : 'border-red-200 bg-red-50 text-red-900'
+          }`}
+        >
+          <div className="flex items-start gap-3 p-4">
+            <svg className="w-5 h-5 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              {feedbackToast.type === 'success' ? (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+              ) : (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4c-.77-1.33-2.69-1.33-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z" />
+              )}
+            </svg>
+            <p className="text-sm leading-relaxed flex-1">{feedbackToast.message}</p>
+            <button
+              type="button"
+              onClick={() => setFeedbackToast(null)}
+              className="hover:opacity-80"
+              aria-label="Dismiss message"
             >
               ×
             </button>
@@ -315,7 +352,7 @@ const OrdersPage = () => {
                     {canCustomerCancel(order.status) && (
                       <button
                         type="button"
-                        onClick={() => handleCancel(order)}
+                        onClick={() => setCancelDialogOrder(order)}
                         disabled={actionId === order._id}
                         className="py-2 px-4 text-sm rounded-xl border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-60"
                       >
@@ -337,6 +374,33 @@ const OrdersPage = () => {
               </div>
             </div>
           ))}
+        </div>
+      )}
+      {cancelDialogOrder && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => setCancelDialogOrder(null)}>
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl border border-gray-100 p-6" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-display font-semibold text-gray-900">Cancel this order?</h3>
+            <p className="mt-2 text-sm text-gray-600">
+              Order #{cancelDialogOrder._id?.slice(-6).toUpperCase()} will be cancelled immediately and cannot be resumed.
+            </p>
+            <div className="mt-6 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setCancelDialogOrder(null)}
+                className="px-4 py-2 rounded-xl border border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+              >
+                Keep order
+              </button>
+              <button
+                type="button"
+                onClick={() => handleCancel(cancelDialogOrder)}
+                disabled={actionId === cancelDialogOrder._id}
+                className="px-4 py-2 rounded-xl bg-red-600 text-white hover:bg-red-700 disabled:opacity-60"
+              >
+                {actionId === cancelDialogOrder._id ? 'Cancelling...' : 'Yes, cancel'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -32,6 +32,14 @@ const paymentMethodLabel = (method) => {
   return map[method] || method || 'N/A';
 };
 
+const normalizeValue = (value) => String(value || '').trim().toUpperCase().replace(/[\s-]+/g, '_');
+const isCashOnDelivery = (method) => {
+  const normalized = normalizeValue(method);
+  return normalized === 'CASH_ON_DELIVERY' || normalized === 'COD';
+};
+const isPaymentCompleted = (status) => normalizeValue(status) === 'COMPLETED';
+const DRIVER_SHARE = 0.1;
+
 function FitMapToBounds({ points }) {
   const map = useMap();
   useEffect(() => {
@@ -198,6 +206,11 @@ const DeliveryDashboard = () => {
   const handleUpdateStatus = async (deliveryId, status) => {
     if (!driver?.driver) return;
     if (status === 'DELIVERED') {
+      const cur = myDeliveries.currentDelivery;
+      if (isCashOnDelivery(cur?.paymentMethod) && !isPaymentCompleted(cur?.paymentStatus)) {
+        setError('Please accept cash payment before completing this cash-on-delivery delivery.');
+        return;
+      }
       setPodOpen(true);
       setPodOtp('');
       setPodPhoto(null);
@@ -216,6 +229,13 @@ const DeliveryDashboard = () => {
 
   const handleSubmitDelivery = async () => {
     if (!driver?.driver || !myDeliveries.currentDelivery?._id) return;
+    if (
+      isCashOnDelivery(myDeliveries.currentDelivery.paymentMethod) &&
+      !isPaymentCompleted(myDeliveries.currentDelivery.paymentStatus)
+    ) {
+      setError('Please accept cash payment before completing this cash-on-delivery delivery.');
+      return;
+    }
     const deliveryId = myDeliveries.currentDelivery._id;
     setUpdating(deliveryId);
     try {
@@ -273,6 +293,12 @@ const DeliveryDashboard = () => {
   ];
 
   const d = driver?.driver;
+  const completedDeliveries = myDeliveries.completedDeliveries || [];
+  const completedGross = completedDeliveries.reduce(
+    (sum, del) => sum + Number(del?.codAmountDue || del?.orderDetails?.totalAmount || del?.totalAmount || 0),
+    0,
+  );
+  const driverEarnings = completedGross * DRIVER_SHARE;
   const locationFreshnessLabel =
     driverLastUpdatedAt == null
       ? 'No recent update'
@@ -365,7 +391,7 @@ const DeliveryDashboard = () => {
                         <span className="font-medium">Payment:</span>{' '}
                         {paymentMethodLabel(myDeliveries.currentDelivery.paymentMethod)} ({myDeliveries.currentDelivery.paymentStatus || 'PENDING'})
                       </p>
-                      {myDeliveries.currentDelivery.paymentMethod === 'CASH_ON_DELIVERY' && myDeliveries.currentDelivery.paymentStatus !== 'COMPLETED' && (
+                      {isCashOnDelivery(myDeliveries.currentDelivery.paymentMethod) && !isPaymentCompleted(myDeliveries.currentDelivery.paymentStatus) && (
                         <p className="text-sm text-amber-700">
                           Collect LKR {(myDeliveries.currentDelivery.codAmountDue || myDeliveries.currentDelivery.orderDetails?.totalAmount || 0).toFixed(2)} cash from customer.
                         </p>
@@ -502,7 +528,7 @@ const DeliveryDashboard = () => {
                         );
                       })()}
                       <div className="flex gap-2 flex-wrap">
-                        {myDeliveries.currentDelivery.paymentMethod === 'CASH_ON_DELIVERY' && myDeliveries.currentDelivery.paymentStatus !== 'COMPLETED' && (
+                        {isCashOnDelivery(myDeliveries.currentDelivery.paymentMethod) && !isPaymentCompleted(myDeliveries.currentDelivery.paymentStatus) && (
                           <button
                             onClick={() => handleCollectPayment(myDeliveries.currentDelivery._id)}
                             disabled={!!updating}
@@ -521,8 +547,12 @@ const DeliveryDashboard = () => {
                           <button
                             type="button"
                             onClick={() => handleUpdateStatus(myDeliveries.currentDelivery._id, 'DELIVERED')}
-                            disabled={updating}
-                            className="px-4 py-2 rounded-lg bg-green-500 text-white text-sm font-medium"
+                            disabled={
+                              !!updating ||
+                              (isCashOnDelivery(myDeliveries.currentDelivery.paymentMethod) &&
+                                !isPaymentCompleted(myDeliveries.currentDelivery.paymentStatus))
+                            }
+                            className="px-4 py-2 rounded-lg bg-green-500 text-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             Complete delivery
                           </button>
@@ -628,10 +658,16 @@ const DeliveryDashboard = () => {
                 </div>
                 <div className="card p-6">
                   <p className="text-sm text-gray-500">Completed (30 days)</p>
-                  <p className="text-2xl font-bold">{myDeliveries.completedDeliveries?.length || 0}</p>
+                  <p className="text-2xl font-bold">{completedDeliveries.length}</p>
+                </div>
+                <div className="card p-6">
+                  <p className="text-sm text-gray-500">My Earnings (10% share)</p>
+                  <p className="text-2xl font-bold text-emerald-600">LKR {driverEarnings.toFixed(2)}</p>
                 </div>
                 <div className="card p-6 col-span-full">
-                  <p className="text-gray-500 text-sm">Earnings are calculated per delivery. Contact admin for payout details.</p>
+                  <p className="text-gray-500 text-sm">
+                    Revenue split per delivered order: Restaurant 75% · Platform 15% · Driver 10%.
+                  </p>
                 </div>
               </div>
             )}

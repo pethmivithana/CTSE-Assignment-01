@@ -137,6 +137,15 @@ const Navbar = () => {
                 )}
               </Link>
             )}
+            {user && (
+              <button
+                onClick={() => logout()}
+                className="ml-2 px-3 py-2 rounded-lg border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 transition-colors text-sm font-medium"
+                title="Logout"
+              >
+                Logout
+              </button>
+            )}
 
             {user ? (
               <div className="relative ml-2">
@@ -226,6 +235,18 @@ const Navbar = () => {
                   </span>
                 )}
               </Link>
+            )}
+            {user && (
+              <button
+                onClick={() => logout()}
+                className="p-2 rounded-lg border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+                title="Logout"
+                aria-label="Logout"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H9m4 4v1a2 2 0 01-2 2H6a2 2 0 01-2-2V7a2 2 0 012-2h5a2 2 0 012 2v1" />
+                </svg>
+              </button>
             )}
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}

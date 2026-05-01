@@ -22,6 +22,7 @@ const AdminDashboard = () => {
   const [couponForm, setCouponForm] = useState({ code: '', discountType: 'PERCENTAGE', discountValue: 10, minOrderAmount: 0, validUntil: '', usageLimit: '' });
   const [driverFeedback, setDriverFeedback] = useState({ items: [], summary: { totalRatings: 0, averageRating: 0 } });
   const [restaurantFeedback, setRestaurantFeedback] = useState({ items: [], summary: { totalRatings: 0, averageRating: 0 } });
+  const [finance, setFinance] = useState(null);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -219,6 +220,15 @@ const AdminDashboard = () => {
     }
   };
 
+  const fetchFinance = async () => {
+    try {
+      const data = await api.getAdminOrderAnalytics();
+      setFinance(data);
+    } catch (err) {
+      setError(err.message || 'Failed to load platform earnings');
+    }
+  };
+
   const createCoupon = async (e) => {
     e.preventDefault();
     if (!couponForm.code || !couponForm.validUntil) return;
@@ -248,6 +258,7 @@ const AdminDashboard = () => {
       fetchUsers();
       fetchCoupons();
       fetchFeedback();
+      fetchFinance();
     }
   }, [user, navigate]);
 
@@ -319,6 +330,27 @@ const AdminDashboard = () => {
         {error && (
           <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-100 text-red-700">
             {error}
+          </div>
+        )}
+
+        {finance && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+            <div className="card p-4">
+              <p className="text-xs uppercase tracking-wide text-gray-500">Delivered orders</p>
+              <p className="text-2xl font-bold text-gray-800 mt-1">{finance.deliveredOrders || 0}</p>
+            </div>
+            <div className="card p-4">
+              <p className="text-xs uppercase tracking-wide text-gray-500">Platform earnings (15%)</p>
+              <p className="text-2xl font-bold text-indigo-600 mt-1">LKR {(finance?.totals?.platform || 0).toFixed(2)}</p>
+            </div>
+            <div className="card p-4">
+              <p className="text-xs uppercase tracking-wide text-gray-500">Restaurant payouts (75%)</p>
+              <p className="text-2xl font-bold text-emerald-600 mt-1">LKR {(finance?.totals?.restaurant || 0).toFixed(2)}</p>
+            </div>
+            <div className="card p-4">
+              <p className="text-xs uppercase tracking-wide text-gray-500">Driver payouts (10%)</p>
+              <p className="text-2xl font-bold text-amber-600 mt-1">LKR {(finance?.totals?.driver || 0).toFixed(2)}</p>
+            </div>
           </div>
         )}
 
@@ -422,6 +454,7 @@ const AdminDashboard = () => {
                   <thead>
                     <tr className="bg-gray-50 border-b">
                       <th className="py-3 px-4 text-left text-xs font-semibold text-gray-500">Code</th>
+                      <th className="py-3 px-4 text-left text-xs font-semibold text-gray-500">Created By</th>
                       <th className="py-3 px-4 text-left text-xs font-semibold text-gray-500">Type</th>
                       <th className="py-3 px-4 text-left text-xs font-semibold text-gray-500">Value</th>
                       <th className="py-3 px-4 text-left text-xs font-semibold text-gray-500">Used</th>
@@ -432,6 +465,13 @@ const AdminDashboard = () => {
                     {coupons.map((c) => (
                       <tr key={c._id} className="border-b border-gray-100 hover:bg-gray-50/80">
                         <td className="py-3 px-4 font-medium">{c.code}</td>
+                        <td className="py-3 px-4 text-sm text-gray-700">
+                          {c.restaurantName
+                            ? c.restaurantName
+                            : c.createdByRole === 'restaurantManager'
+                            ? 'Restaurant manager'
+                            : 'Admin (Global)'}
+                        </td>
                         <td className="py-3 px-4">
                           <span className="text-xs px-2 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">{c.discountType}</span>
                         </td>

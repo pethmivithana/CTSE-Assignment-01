@@ -17,6 +17,7 @@ env:
   ACR_NAME: feedoacr83105
   ACR_LOGIN_SERVER: feedoacr83105.azurecr.io
   FRONTEND_API_URL: https://api-gateway-feedo.wonderfultree-fef71107.westus2.azurecontainerapps.io
+  FRONTEND_STRIPE_PUBLISHABLE_KEY: ${{ vars.FRONTEND_STRIPE_PUBLISHABLE_KEY }}
   AZURE_CLIENT_ID: 1c671c80-fd1f-4527-a48e-66c81c85b878
   AZURE_TENANT_ID: 44e3cf94-19c9-4e32-96c3-14f5bf01391a
   AZURE_SUBSCRIPTION_ID: 57d0d19c-a6b6-46fc-9d1b-38e100d968ff
@@ -197,6 +198,7 @@ jobs:
             ${{ env.ACR_LOGIN_SERVER }}/${{ matrix.image }}:latest
           build-args: |
             REACT_APP_API_URL=${{ env.FRONTEND_API_URL }}
+            REACT_APP_STRIPE_PUBLISHABLE_KEY=${{ env.FRONTEND_STRIPE_PUBLISHABLE_KEY }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

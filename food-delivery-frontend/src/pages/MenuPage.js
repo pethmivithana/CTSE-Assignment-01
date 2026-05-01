@@ -30,6 +30,7 @@ const MenuPage = () => {
   const { user } = useAuth();
   const [restaurant, setRestaurant] = useState(null);
   const [items, setItems] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [filteredItems, setFilteredItems] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [loading, setLoading] = useState(true);
@@ -46,20 +47,26 @@ const MenuPage = () => {
       try {
         setLoading(true);
         setError(null);
-        const [restData, menuData] = await Promise.all([
+        const [restData, menuData, categoryData] = await Promise.all([
           api.getRestaurant(id),
           api.getMenuItems({ restaurantId: id, available: true }),
+          api.getCategories(id).catch(() => []),
         ]);
         setRestaurant(restData);
         const list = Array.isArray(menuData) ? menuData : menuData.data || [];
         const available = list.filter((i) => !i.isOutOfStock && i.isAvailable !== false);
         setItems(available);
         setFilteredItems(available);
+        const categoryList = Array.isArray(categoryData)
+          ? categoryData
+          : categoryData?.data || categoryData?.categories || [];
+        setCategories(categoryList);
       } catch (err) {
         setError(err.message);
         setRestaurant(null);
         setItems([]);
         setFilteredItems([]);
+        setCategories([]);
       } finally {
         setLoading(false);
       }
@@ -84,7 +91,10 @@ const MenuPage = () => {
 
   const reviewOrderId = searchParams.get('orderId');
 
-  const categories = items.length > 0 ? [...new Set(items.map((i) => i.category).filter(Boolean))] : [];
+  const categoryOptions =
+    categories.length > 0
+      ? categories
+      : [...new Set(items.map((i) => i.category).filter(Boolean))].map((name) => ({ name, description: '' }));
 
   useEffect(() => {
     setFilteredItems(selectedCategory === 'all' ? items : items.filter((i) => i.category === selectedCategory));
@@ -179,13 +189,14 @@ const MenuPage = () => {
             {restaurant.isOpen && <span className="text-sky-300">• Open now</span>}
           </div>
           {address && <p className="text-sm text-white/80 mt-1">{address}</p>}
+          {restaurant.description && <p className="text-sm text-white/80 mt-1 max-w-3xl">{restaurant.description}</p>}
           </div>
         </div>
 
         <div className="flex flex-col lg:flex-row gap-8">
           <div className="lg:flex-1">
             <h2 className="text-xl font-bold text-gray-800 mb-4">Menu</h2>
-            <CategoryFilter categories={categories} selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory} />
+            <CategoryFilter categories={categoryOptions} selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory} />
 
             {filteredItems.length > 0 ? (
               <div className="grid gap-4 sm:gap-6" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))' }}>

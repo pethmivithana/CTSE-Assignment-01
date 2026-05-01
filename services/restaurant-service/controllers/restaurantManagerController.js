@@ -1,5 +1,5 @@
 const Restaurant = require('../models/Restaurant');
-const MenuItem = require('../models/menuItem');
+const MenuItem = require('../models/MenuItem');
 const MenuCategory = require('../models/MenuCategory');
 const axios = require('axios');
 
@@ -89,10 +89,13 @@ exports.getAnalytics = async (req, res) => {
     const restaurant = await Restaurant.findOne({ managerId: req.user._id });
     if (!restaurant) return res.status(404).json({ error: 'Restaurant not found' });
     const ORDER_SERVICE_URL = process.env.ORDER_SERVICE_URL || 'http://localhost:3004';
-    const { data } = await axios.get(`${ORDER_SERVICE_URL}/api/orders/restaurant/analytics`, {
-      headers: getAuthHeaders(req.token)
-    }).catch(() => ({ data: null }));
-    if (data) return res.json(data);
+    const { data } = await axios
+      .get(`${ORDER_SERVICE_URL}/api/orders/restaurant/analytics`, {
+        headers: getAuthHeaders(req.token),
+        params: { restaurantId: String(restaurant._id) },
+      })
+      .catch(() => ({ data: null }));
+    if (data) return res.json(data.data || data);
     res.json({
       dailyRevenue: 0,
       weeklyRevenue: 0,
