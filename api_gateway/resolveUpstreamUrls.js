@@ -19,14 +19,14 @@ const LOCAL_DEFAULTS = {
 };
 
 /**
- * Default Container App **resource names** (hostname for mesh calls).
- * - CI/CD (.github/workflows/ci-cd.yml) uses: user-service, restaurant-service, order-service-feedo, …
- * - deploy/azure/harden-security.ps1 and many manual setups use: user-service-feedo, restaurant-service-feedo, …
- * If your Azure names match CI only, set e.g. USER_SERVICE_ACA_APP=user-service (repository / Container App env).
+ * Default Container App **resource names** (hostname for mesh `http://<name>` calls).
+ * Must match `az containerapp list -g <rg> -o table` Name column.
+ * This subscription uses: user-service, restaurant-service (not *-feedo).
+ * Override per env: USER_SERVICE_ACA_APP, RESTAURANT_SERVICE_ACA_APP, …
  */
 const DEFAULT_ACA_APP = {
-  USER_SERVICE_URL: 'user-service-feedo',
-  RESTAURANT_SERVICE_URL: 'restaurant-service-feedo',
+  USER_SERVICE_URL: 'user-service',
+  RESTAURANT_SERVICE_URL: 'restaurant-service',
   ORDER_SERVICE_URL: 'order-service-feedo',
   DELIVERY_SERVICE_URL: 'delivery-service',
   NOTIFICATION_SERVICE_URL: 'notification-service-feedo',

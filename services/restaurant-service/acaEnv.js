@@ -18,7 +18,7 @@ function applyAcaUserServiceUrl() {
   if (!unset && !stillDefault) return;
   if (!onAzureContainerApps()) return;
 
-  const app = process.env.USER_SERVICE_ACA_APP || 'user-service-feedo';
+  const app = process.env.USER_SERVICE_ACA_APP || 'user-service';
   const scheme = (process.env.ACA_UPSTREAM_SCHEME || 'http').toLowerCase();
   if (scheme === 'http') {
     process.env.USER_SERVICE_URL = `http://${app}`;

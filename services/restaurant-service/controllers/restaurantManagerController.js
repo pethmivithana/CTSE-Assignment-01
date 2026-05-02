@@ -1,5 +1,5 @@
 const Restaurant = require('../models/Restaurant');
-const MenuItem = require('../models/MenuItem');
+const MenuItem = require('../models/menuItem');
 const MenuCategory = require('../models/MenuCategory');
 const axios = require('axios');
 
