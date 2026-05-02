@@ -9,10 +9,11 @@ CTSE Assignment: Deploy microservices using managed container orchestration (ECS
 
 ## AWS ECS (Fargate)
 
-1. Create ECR or use GitHub Container Registry (ghcr.io)
-2. Create ECS cluster, VPC, security groups
-3. Update `task-definition-delivery.json` with your account ID, region, secrets
-4. Create ECS service from task definition
+1. **IAM roles (least privilege):** deploy `deploy/aws-iam/feedo-ecs-roles.yaml` — see [`deploy/aws-iam/README.md`](aws-iam/README.md).
+2. Create ECR or use GitHub Container Registry (ghcr.io)
+3. Create ECS cluster, VPC, security groups
+4. Update `task-definition-delivery.json` with your account ID, region, secrets
+5. Create ECS service from task definition
 
 ```bash
 aws ecs register-task-definition --cli-input-json file://task-definition-delivery.json

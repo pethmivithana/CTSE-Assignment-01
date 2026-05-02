@@ -1,0 +1,105 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Feedo — IAM roles for ECS Fargate: task execution (ECR, logs, Secrets Manager)
+  and task roles (runtime AWS API; minimal by default). Apply with AWS CLI; then
+  replace ACCOUNT_ID in task-definition JSON files.
+
+Parameters:
+  SecretNamePrefix:
+    Type: String
+    Default: feedo
+    Description: >
+      IAM allows GetSecretValue on Secrets Manager ARNs whose name part matches
+      this prefix (e.g. secrets named feedo/jwt, feedo/mongodb).
+
+Resources:
+  # Pull images, write logs, read secrets referenced in task definitions (ECS agent).
+  FeedoEcsExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: feedo-ecs-execution
+      Description: Feedo ECS task execution — ECR, CloudWatch Logs, Secrets Manager (pull only)
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      Policies:
+        - PolicyName: FeedoExecutionReadSecrets
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: ReadFeedoSecretsForTaskDefinition
+                Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${SecretNamePrefix}*'
+
+  # Credentials inside the API gateway container (use if app calls AWS APIs).
+  FeedoGatewayTaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: feedo-gateway-task-role
+      Description: Feedo API gateway task role — least privilege (expand if gateway uses AWS SDK)
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: FeedoGatewayOptionalSecretsRead
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: OptionalRuntimeSecretRead
+                Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${SecretNamePrefix}*'
+
+  # Credentials inside microservice containers (delivery, order, etc.).
+  FeedoMicroserviceTaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: feedo-task-role
+      Description: Feedo microservice task role — optional runtime secret / AWS access
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: FeedoServiceOptionalSecretsRead
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: OptionalRuntimeSecretRead
+                Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${SecretNamePrefix}*'
+
+Outputs:
+  ExecutionRoleArn:
+    Description: Use as executionRoleArn in all Feedo ECS task definitions
+    Value: !GetAtt FeedoEcsExecutionRole.Arn
+  GatewayTaskRoleArn:
+    Description: Use as taskRoleArn for api-gateway task definition
+    Value: !GetAtt FeedoGatewayTaskRole.Arn
+  MicroserviceTaskRoleArn:
+    Description: Use as taskRoleArn for delivery/order/etc. task definitions
+    Value: !GetAtt FeedoMicroserviceTaskRole.Arn
+  ExecutionRoleName:
+    Value: !Ref FeedoEcsExecutionRole
+  GatewayTaskRoleName:
+    Value: !Ref FeedoGatewayTaskRole
+  MicroserviceTaskRoleName:
+    Value: !Ref FeedoMicroserviceTaskRole
