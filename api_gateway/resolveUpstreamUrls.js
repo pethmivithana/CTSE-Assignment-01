@@ -18,10 +18,15 @@ const LOCAL_DEFAULTS = {
   PAYMENT_SERVICE_URL: 'http://localhost:3006',
 };
 
-/** Default Container App resource names — must match .github/workflows/ci-cd.yml */
+/**
+ * Default Container App **resource names** (hostname for mesh calls).
+ * - CI/CD (.github/workflows/ci-cd.yml) uses: user-service, restaurant-service, order-service-feedo, …
+ * - deploy/azure/harden-security.ps1 and many manual setups use: user-service-feedo, restaurant-service-feedo, …
+ * If your Azure names match CI only, set e.g. USER_SERVICE_ACA_APP=user-service (repository / Container App env).
+ */
 const DEFAULT_ACA_APP = {
-  USER_SERVICE_URL: 'user-service',
-  RESTAURANT_SERVICE_URL: 'restaurant-service',
+  USER_SERVICE_URL: 'user-service-feedo',
+  RESTAURANT_SERVICE_URL: 'restaurant-service-feedo',
   ORDER_SERVICE_URL: 'order-service-feedo',
   DELIVERY_SERVICE_URL: 'delivery-service',
   NOTIFICATION_SERVICE_URL: 'notification-service-feedo',
@@ -43,9 +48,22 @@ function isUnsetOrLocalDefault(envKey, value) {
   return def != null && value === def;
 }
 
+function isAzureContainerApp() {
+  return Boolean(process.env.CONTAINER_APP_NAME || process.env.CONTAINER_APP_ENV_DNS_SUFFIX);
+}
+
+/**
+ * In-environment calls: Microsoft recommends http://<app-resource-name> (mesh DNS).
+ * HTTPS FQDN needs CONTAINER_APP_ENV_DNS_SUFFIX — set ACA_UPSTREAM_SCHEME=https to use it.
+ */
 function buildAcaBaseUrl(appName) {
+  if (!appName) return null;
+  const scheme = (process.env.ACA_UPSTREAM_SCHEME || 'http').toLowerCase();
+  if (scheme === 'http') {
+    return `http://${appName}`;
+  }
   const suffix = process.env.CONTAINER_APP_ENV_DNS_SUFFIX;
-  if (!suffix || !appName) return null;
+  if (!suffix) return null;
   const useInternal =
     String(process.env.ACA_SERVICES_INTERNAL_INGRESS || '').toLowerCase() === 'true' ||
     String(process.env.ACA_USE_INTERNAL_UPSTREAMS || '').toLowerCase() === 'true';
@@ -62,8 +80,7 @@ function resolveUpstreamUrl(envKey) {
   if (!isUnsetOrLocalDefault(envKey, explicit)) {
     return explicit;
   }
-  const suffix = process.env.CONTAINER_APP_ENV_DNS_SUFFIX;
-  if (!suffix) {
+  if (!isAzureContainerApp()) {
     return explicit || LOCAL_DEFAULTS[envKey];
   }
   const overrideEnv = ACA_APP_ENV_SUFFIX[envKey];
@@ -76,7 +93,7 @@ function resolveUpstreamUrl(envKey) {
 }
 
 function logResolvedUrls(urls) {
-  if (!process.env.CONTAINER_APP_ENV_DNS_SUFFIX) return;
+  if (!isAzureContainerApp()) return;
   console.log(
     '[Gateway] Azure Container Apps upstream URLs:',
     JSON.stringify(urls, null, 0)
