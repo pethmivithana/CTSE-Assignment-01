@@ -9,6 +9,7 @@ const deliveryService = require("./services/deliveryService");
 
 // Load environment variables
 dotenv.config();
+require("./acaEnv").applyAcaUserServiceUrl();
 
 const app = express();
 

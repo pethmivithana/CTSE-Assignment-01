@@ -16,7 +16,12 @@ exports.getOrCreateMyRestaurant = async (req, res) => {
     const managerId = req.user._id;
     let restaurant = await Restaurant.findOne({ managerId });
     if (!restaurant) {
-      const name = req.user.restaurantInfo?.name || req.user.fullName ? `${req.user.fullName}'s Restaurant` : 'My Restaurant';
+      const name =
+        (req.user.restaurantInfo?.name && String(req.user.restaurantInfo.name).trim())
+          ? String(req.user.restaurantInfo.name).trim()
+          : req.user.fullName
+            ? `${req.user.fullName}'s Restaurant`
+            : 'My Restaurant';
       const address = (req.user.restaurantInfo?.address || '').trim() || 'Address to be updated';
       const phone = (req.user.contactNumber || '').trim() || '0000000000';
       restaurant = new Restaurant({

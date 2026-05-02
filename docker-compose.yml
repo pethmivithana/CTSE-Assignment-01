@@ -84,6 +84,8 @@ services:
     environment:
       - PORT=3002
       - MONGODB_URI=mongodb://mongodb:27017/restaurant_db
+      - USER_SERVICE_URL=http://user-service:3001
+      - JWT_SECRET=${JWT_SECRET:-your_jwt_secret_here}
       - ORDER_SERVICE_URL=http://order-service:3004
     volumes:
       - restaurant_uploads:/usr/src/app/uploads
@@ -130,6 +132,7 @@ services:
       - "3005"
     environment:
       - PORT=3005
+      - USER_SERVICE_URL=http://user-service:3001
       # Must match user-service / API gateway — required for JWT on /api/notifications/*
       - JWT_SECRET=${JWT_SECRET:-your_jwt_secret_here}
       - MONGODB_URI=mongodb://mongodb:27017/notification_db

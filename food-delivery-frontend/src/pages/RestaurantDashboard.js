@@ -20,13 +20,15 @@ const RestaurantDashboard = () => {
   const [error, setError] = useState(null);
   const [firstLoginNotice, setFirstLoginNotice] = useState('');
 
+  // Load once when user is ready — do not tie to activeTab (tab switches would refetch and
+  // re-surface errors even when the restaurant loaded successfully).
   useEffect(() => {
     if (user && user.role === 'restaurantManager') {
       loadData();
     } else if (user && user.role !== 'restaurantManager') {
       navigate('/');
     }
-  }, [user, navigate, activeTab]);
+  }, [user, navigate]);
 
   const loadData = async ({ silent = false } = {}) => {
     if (!silent) setLoading(true);
