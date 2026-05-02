@@ -26,23 +26,31 @@ export const AuthProvider = ({ children }) => {
         });
 
         if (!response.ok) {
-          // Only clear auth for real auth failures.
-          // Avoid forcing logout on transient gateway/network errors.
+          // Only clear auth for real auth failures (expired/invalid JWT).
           if (response.status === 401 || response.status === 403) {
             localStorage.removeItem('foodAppToken');
             localStorage.removeItem('foodAppRefreshToken');
             localStorage.removeItem(USER_CACHE_KEY);
             setUser(null);
+            throw new Error('Token verification failed');
           }
-          throw new Error('Token verification failed');
+          // Gateway/upstream errors (502/503) — keep session; user can retry after backend recovers.
+          if (response.status >= 500) {
+            console.warn(`Profile check skipped: server error ${response.status} (backend may be updating).`);
+            return;
+          }
+          throw new Error(`Profile request failed (${response.status})`);
         }
 
         const data = await response.json();
         setUser(data.user);
         localStorage.setItem(USER_CACHE_KEY, JSON.stringify(data.user));
       } catch (error) {
-        console.error('Token verification failed:', error);
-        // Keep existing token/user cache on non-auth errors to prevent refresh logouts.
+        if (error?.message === 'Token verification failed') {
+          console.error('Token verification failed:', error.message);
+        } else {
+          console.warn('Profile check:', error?.message || error);
+        }
       } finally {
         setLoading(false);
       }

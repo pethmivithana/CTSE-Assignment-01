@@ -232,7 +232,7 @@ const proxyToRestaurantService = async (req, res) => {
   const headers = { 'Content-Type': req.headers['content-type'] || 'application/json' };
   if (req.headers['authorization']) headers['Authorization'] = req.headers['authorization'];
   try {
-    const config = { method: req.method, url: targetUrl, headers, validateStatus: () => true, timeout: 10000 };
+    const config = { method: req.method, url: targetUrl, headers, validateStatus: () => true, timeout: 60000 };
     if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
       const body = await new Promise((resolve, reject) => {
         const chunks = [];
