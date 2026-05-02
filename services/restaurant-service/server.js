@@ -15,9 +15,19 @@ if (!fs.existsSync(uploadsDir)) {
   console.log('Created uploads directory');
 }
 
-// CORS configuration - allow frontend (localhost:3000) and API gateway (localhost:3001)
+// CORS: localhost + Azure Container Apps (browser or gateway calling with Origin)
 const corsOptions = {
-  origin: ['http://localhost:3000', 'http://localhost:3001'],
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    const allowed = new Set(['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:3001', 'http://127.0.0.1:3001']);
+    if (allowed.has(origin)) return callback(null, true);
+    try {
+      if (new URL(origin).hostname.endsWith('.azurecontainerapps.io')) return callback(null, true);
+    } catch (_) {
+      /* ignore */
+    }
+    return callback(null, false);
+  },
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control', 'Expires', 'Pragma'],
 };

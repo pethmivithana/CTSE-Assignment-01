@@ -4,6 +4,7 @@ const httpProxy = require('http-proxy');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
+const { resolveUpstreamUrl, logResolvedUrls } = require('./resolveUpstreamUrls');
 
 const app = express();
 // changeOrigin is required in ACA so upstream host header matches target service
@@ -14,14 +15,24 @@ const proxy = httpProxy.createProxyServer({ changeOrigin: true });
 
 // Environment variables
 const PORT = process.env.PORT || 3001;
-// User service: 5002 when running locally (npm start), user-service:3001 in Docker
-const USER_SERVICE_URL = process.env.USER_SERVICE_URL || 'http://localhost:5002';
-const RESTAURANT_SERVICE_URL = process.env.RESTAURANT_SERVICE_URL || 'http://localhost:3002';
-const ORDER_SERVICE_URL = process.env.ORDER_SERVICE_URL || 'http://localhost:3004';
-const DELIVERY_SERVICE_URL = process.env.DELIVERY_SERVICE_URL || 'http://localhost:3003';
-const NOTIFICATION_SERVICE_URL = process.env.NOTIFICATION_SERVICE_URL || 'http://localhost:3005';
-const PAYMENT_SERVICE_URL = process.env.PAYMENT_SERVICE_URL || 'http://localhost:3006';
+// Local: see resolveUpstreamUrls.js defaults. On Azure Container Apps, upstream URLs
+// are derived from CONTAINER_APP_ENV_DNS_SUFFIX + per-service app names unless *_SERVICE_URL is set.
+const USER_SERVICE_URL = resolveUpstreamUrl('USER_SERVICE_URL');
+const RESTAURANT_SERVICE_URL = resolveUpstreamUrl('RESTAURANT_SERVICE_URL');
+const ORDER_SERVICE_URL = resolveUpstreamUrl('ORDER_SERVICE_URL');
+const DELIVERY_SERVICE_URL = resolveUpstreamUrl('DELIVERY_SERVICE_URL');
+const NOTIFICATION_SERVICE_URL = resolveUpstreamUrl('NOTIFICATION_SERVICE_URL');
+const PAYMENT_SERVICE_URL = resolveUpstreamUrl('PAYMENT_SERVICE_URL');
 const JWT_SECRET = process.env.JWT_SECRET || 'jasonwebtoken';
+
+logResolvedUrls({
+  USER_SERVICE_URL,
+  RESTAURANT_SERVICE_URL,
+  ORDER_SERVICE_URL,
+  DELIVERY_SERVICE_URL,
+  NOTIFICATION_SERVICE_URL,
+  PAYMENT_SERVICE_URL,
+});
 
 const allowedOrigins = new Set([
   'http://localhost:3000',
@@ -221,7 +232,7 @@ const proxyToRestaurantService = async (req, res) => {
   const headers = { 'Content-Type': req.headers['content-type'] || 'application/json' };
   if (req.headers['authorization']) headers['Authorization'] = req.headers['authorization'];
   try {
-    const config = { method: req.method, headers, validateStatus: () => true, timeout: 10000 };
+    const config = { method: req.method, url: targetUrl, headers, validateStatus: () => true, timeout: 10000 };
     if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
       const body = await new Promise((resolve, reject) => {
         const chunks = [];
@@ -231,7 +242,7 @@ const proxyToRestaurantService = async (req, res) => {
       });
       if (body.length) config.data = body;
     }
-    const response = await axios(targetUrl, config);
+    const response = await axios(config);
     if (typeof response.data === 'object' && response.data !== null) {
       res.status(response.status).json(response.data);
     } else {
@@ -348,7 +359,7 @@ app.use('/api/coupons', authenticate, async (req, res) => {
     'x-user-role': req.user?.role,
   };
   try {
-    const config = { method: req.method, headers, validateStatus: () => true };
+    const config = { method: req.method, url: targetUrl, headers, validateStatus: () => true };
     if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
       const body = await new Promise((resolve, reject) => {
         const chunks = [];
@@ -358,7 +369,7 @@ app.use('/api/coupons', authenticate, async (req, res) => {
       });
       if (body.length) config.data = body;
     }
-    const response = await axios(targetUrl, config);
+    const response = await axios(config);
     res.status(response.status).json(response.data);
   } catch (err) {
     console.error('Coupon proxy error:', err.message);
