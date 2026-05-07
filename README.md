@@ -1,4 +1,4 @@
-# 🍔 Food Delivery System
+# 🍔 Feedo - Food Delivery System
 
 **Food Delivery System** is a modern, distributed web application that allows users to order food from multiple restaurants, track orders in real-time, and manage payments. The system is designed using a **microservices architecture** with an **API Gateway** to handle client requests efficiently.
 
@@ -80,8 +80,6 @@ graph TD
 
 **SonarCloud**: Add `SONAR_TOKEN` in GitHub repository **Secrets** (from [sonarcloud.io](https://sonarcloud.io)). Set `sonar.organization` in `sonar-project.properties`.
 
-**Public repository**: Make the GitHub repo **public** for the assignment submission.
-
 ---
 
 ## 🐳 Docker & running the stack
@@ -92,7 +90,12 @@ docker compose build && docker compose up -d
 ```
 
 - **Frontend:** http://localhost:3000  
-- **API Gateway:** http://localhost:3001  
+- **API Gateway:** http://localhost:3001
+
+- ## 🌍 Live Deployment
+
+🚀 **Feedo Live Site:**  
+https://frontend-feedo.wonderfultree-fef71107.westus2.azurecontainerapps.io/
 
 **Teammate / new PC (clone → run):** [`docs/SETUP_AFTER_CLONE.md`](docs/SETUP_AFTER_CLONE.md)  
 
